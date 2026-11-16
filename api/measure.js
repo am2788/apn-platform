@@ -48,6 +48,7 @@ module.exports = async (req, res) => {
     if (j.status !== 'OK') return res.status(200).json({ ...out, status: 'ADDRESS_' + j.status });
     const r0 = j.results[0] || {}, l = r0.geometry && r0.geometry.location;
     if (l) loc = [l.lng, l.lat];
+    if (debug) out.diag = { google: { results: j.results.length, loc, topKeys: Object.keys(j), resultKeys: Object.keys(r0) } };
     const b = (r0.buildings || j.buildings || [])[0];
     const poly = b && b.building_outlines && b.building_outlines[0] && b.building_outlines[0].display_polygon;
     if (poly) out.google = { polygon: largest(poly), sqft: round(geomArea(poly)) };
@@ -58,9 +59,10 @@ module.exports = async (req, res) => {
     try {
       const u = 'https://app.regrid.com/api/v2/parcels/point?lat=' + loc[1] + '&lon=' + loc[0] + '&radius=25&limit=5&token=' + encodeURIComponent(rToken);
       const r = await fetch(u);
-      if (!r.ok) out.checks.push('regrid_http_' + r.status);
+      if (!r.ok) { out.checks.push('regrid_http_' + r.status); if (debug) { out.diag = out.diag || {}; out.diag.regrid = { http: r.status, body: (await r.text()).slice(0, 300) }; } }
       else {
         const j = await r.json(), feats = (j.parcels && j.parcels.features) || [];
+        if (debug) { out.diag = out.diag || {}; out.diag.regrid = { http: r.status, topKeys: Object.keys(j), parcels: feats.length, message: j.message || j.error || j.status || (j.parcels && j.parcels.status) || null }; }
         const f = feats.find(x => inGeom(loc, x.geometry)) || feats[0];
         if (f) {
           const p = f.properties || {}, fl = p.fields || {};
