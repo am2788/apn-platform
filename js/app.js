@@ -152,6 +152,8 @@
     const lot = Math.max(1, p.building + p.land), f = Math.sqrt(Math.min(0.92, p.building / lot));
     return `<div class="parcel"><div class="lot"></div><div class="bld" style="width:${(f * 84).toFixed(1)}%;height:${(f * 84).toFixed(1)}%"></div><div class="lbl">Schematic, not imagery. Blue: building. Dashed: lot line.</div></div>`;
   }
+  const isV = (x, k) => !x.verified || !!x.verified[k];
+  const vp = (x, k, label) => pill(label + (isV(x, k) ? ' verified' : ' pending'), isV(x, k) ? 'ok' : 'warn');
   function cProps() {
     const p = ui.prop;
     const form = p ? `<div class="card" style="margin-bottom:16px"><h3>Add a property</h3><div class="grid g2">
@@ -159,14 +161,14 @@
         <div class="grid g2" style="gap:10px"><div class="field"><label for="p-label">Name</label><input id="p-label" type="text" data-prop="label" value="${esc(p.label)}"></div>
         <div class="field"><label for="p-type">Type</label><select id="p-type" data-prop="type">${['Residential', 'STR', 'Commercial'].map(x => `<option ${p.type === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div></div>
         <button class="btn" data-act="measure">Measure from satellite</button>
-        ${p.measured ? `<div class="grid g2" style="gap:10px;margin-top:14px"><div class="field"><label for="p-b">Building footprint (sq ft)</label><input id="p-b" type="number" min="0" data-prop="building" value="${p.building}"></div>
-        <div class="field"><label for="p-l">Land, excluding building (sq ft)</label><input id="p-l" type="number" min="0" data-prop="land" value="${p.land}"></div></div>
-        <p class="small muted">${p.source === 'satellite' ? (p.auto ? 'Building outline detected automatically. Drag its corners to adjust, then click the corners of the lot.' : 'No automatic outline for this address. Click the corners of the building, then switch to the lot.') : 'Estimated without imagery. Live satellite tracing switches on when the Google Maps key is added; until then, correct these numbers by hand.'}</p>
+        ${p.measured ? `<div class="grid g2" style="gap:10px;margin-top:14px"><div class="field"><label for="p-b">Building footprint (sq ft)</label><input id="p-b" type="number" readonly value="${p.building}"></div>
+        <div class="field"><label for="p-l">Land, excluding building (sq ft)</label><input id="p-l" type="number" readonly value="${p.land}"></div></div>
+        <p class="small muted">${p.source === 'satellite' ? (p.auto ? 'Building footprint measured automatically and locked. Click the corners of the lot; our team verifies the lot before grounds work can be ordered.' : 'No automatic outline for this address. Trace the building and the lot; our team verifies both before you can order.') : 'Estimated without imagery. Our team verifies these figures before you can order.'}</p>
         <div class="row"><button class="btn primary" data-act="saveProp">Save property</button><button class="btn ghost" data-act="cancelProp">Cancel</button></div>` : ''}</div>
-      <div>${p.measured ? (cfg.GOOGLE_MAPS_KEY ? `<div id="gmap"></div><div class="seg" style="margin-top:8px"><button data-act="trace" data-k="building" class="${p.trace !== 'land' ? 'on' : ''}">Trace building</button><button data-act="trace" data-k="land" class="${p.trace === 'land' ? 'on' : ''}">Trace lot</button><button data-act="traceClear">Clear outline</button></div>` : parcelSVG(p)) : `<div class="note">Enter the address and measure. We read the building footprint and the land separately: interior work is priced on the building, grounds work on the land.</div>`}</div></div></div>` : '';
+      <div>${p.measured ? (cfg.GOOGLE_MAPS_KEY ? `<div id="gmap"></div><div class="seg" style="margin-top:8px"><button data-act="trace" data-k="building" class="${p.trace !== 'land' ? 'on' : ''}" ${p.auto ? 'disabled' : ''}>${p.auto ? 'Building locked' : 'Trace building'}</button><button data-act="trace" data-k="land" class="${p.trace === 'land' ? 'on' : ''}">Trace lot</button><button data-act="traceClear">Clear outline</button></div>` : parcelSVG(p)) : `<div class="note">Enter the address and measure. We read the building footprint and the land separately: interior work is priced on the building, grounds work on the land.</div>`}</div></div></div>` : '';
     return `${form}<div class="card"><div class="row between"><h3>Your properties</h3>${p ? '' : `<button class="btn primary sm" data-act="newProp">Add property</button>`}</div>
-      <div class="scroll-x"><table><tr><th>Property</th><th>Type</th><th class="r">Building</th><th class="r">Land</th><th>Measured by</th><th></th></tr>
-      ${S.props.map(x => `<tr><td><b>${esc(x.label)}</b><div class="small muted">${esc(x.address)}</div></td><td>${esc(x.type)}</td><td class="r num">${sqft(x.building)}</td><td class="r num">${sqft(x.land)}</td><td>${x.source === 'satellite' ? 'Satellite trace' : 'Estimate'}</td><td class="r"><button class="btn sm" data-act="orderFor" data-id="${x.id}">Order</button> <button class="btn sm danger" data-act="delProp" data-id="${x.id}">Remove</button></td></tr>`).join('') || `<tr><td colspan="6" class="muted">No properties yet.</td></tr>`}</table></div></div>`;
+      <div class="scroll-x"><table><tr><th>Property</th><th>Type</th><th class="r">Building</th><th class="r">Land</th><th>Verification</th><th></th></tr>
+      ${S.props.map(x => `<tr><td><b>${esc(x.label)}</b><div class="small muted">${esc(x.address)}</div></td><td>${esc(x.type)}</td><td class="r num">${sqft(x.building)}</td><td class="r num">${sqft(x.land)}</td><td>${vp(x, 'building', 'Building')} ${vp(x, 'land', 'Land')}</td><td class="r"><button class="btn sm" data-act="orderFor" data-id="${x.id}">Order</button> <button class="btn sm danger" data-act="delProp" data-id="${x.id}">Remove</button></td></tr>`).join('') || `<tr><td colspan="6" class="muted">No properties yet.</td></tr>`}</table></div></div>`;
   }
   function cOrder() {
     if (!S.props.length) return `<div class="card"><p>Add a property first so we can measure it.</p><button class="btn primary" data-act="newProp">Add property</button></div>`;
@@ -193,7 +195,8 @@
         <tr><td>Service</td><td class="r num">${money(q.service)}</td></tr>${q.fees ? `<tr><td>Dispatch fees</td><td class="r num">${money(q.fees)}</td></tr>` : ''}
         <tr class="t"><td>Total per visit</td><td class="r num">${money(q.total)}</td></tr></table>
         <p class="small muted">${esc(prop.label)} &middot; ${o.services.length} service${o.services.length === 1 ? '' : 's'} &middot; ${o.freq}. Tax is added at payment by jurisdiction.</p>
-        <button class="btn primary" style="width:100%" data-act="addCart" ${o.services.length ? '' : 'disabled'}>${o.services.length ? 'Add to cart' : 'Select at least one service'}</button></div>
+        ${isV(prop, q.basis) ? '' : `<p class="note">The ${q.basis === 'land' ? 'land' : 'building'} measurement for this property is awaiting verification. You can see the estimate, and ordering opens once our team confirms it.</p>`}
+        <button class="btn primary" style="width:100%" data-act="addCart" ${o.services.length && isV(prop, q.basis) ? '' : 'disabled'}>${!isV(prop, q.basis) ? 'Awaiting measurement verification' : o.services.length ? 'Add to cart' : 'Select at least one service'}</button></div>
       <div class="card"><h3>Cart</h3>${cart.length ? cart.map(x => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--line)"><div class="grow"><b>${esc(APN.sector(x.c.sector).short)}</b> &middot; ${esc(APN.sector(x.c.sector).tiers[x.c.tier][0])}<div class="small muted">${esc(x.p.label)} &middot; ${x.c.freq}</div></div><b class="num">${money(x.q.total)}</b><button class="btn sm" data-act="rmCart" data-i="${x.i}" aria-label="Remove">&times;</button></div>`).join('') + `<table class="sum"><tr class="t"><td>Due now, held in escrow</td><td class="r num">${money(total)}</td></tr></table>
         <p class="small muted">${cfg.STRIPE_PUBLISHABLE_KEY ? 'Card details are collected securely by Stripe.' : 'Test mode: the Stripe key is not set, so no card is charged.'}</p>
         <button class="btn primary" style="width:100%" data-act="checkout">Place order and hold funds</button>` : `<p class="muted small">Your cart is empty.</p>`}</div>
@@ -282,6 +285,8 @@
       <div class="card"><h3>Escrow queue</h3>${q.map(x => `<div style="padding:10px 0;border-top:1px solid var(--line)"><div class="row between"><b>${esc(APN.sector(x.sector).short)} &middot; ${x.id}</b>${escrowPill(x)}</div><div class="small muted">${esc(x.address)} &middot; ${Object.keys(x.photos).length}/10 photos &middot; ${money(x.total)}</div>
         <div class="row" style="margin-top:8px"><button class="btn sm primary" data-act="release" data-id="${x.id}">Release payment</button>${x.status === 'review' ? `<button class="btn sm" data-act="dispute" data-id="${x.id}">Hold as disputed</button>` : `<button class="btn sm danger" data-act="refund" data-id="${x.id}">Refund customer</button>`}</div></div>`).join('') || '<p class="muted small">Nothing waiting.</p>'}</div>
       <div class="card"><h3>Contractor vetting: ${esc(c.name)}</h3>${APN.VETTING.map(([k, n]) => { const st = c.vetting[k]; return `<div class="row between" style="padding:8px 0;border-top:1px solid var(--line)"><span>${n}</span><span class="row">${pill(VST[st][0], VST[st][1])}${st === 'submitted' ? `<button class="btn sm primary" data-act="vet" data-k="${k}" data-v="verified">Verify</button><button class="btn sm danger" data-act="vet" data-k="${k}" data-v="rejected">Reject</button>` : ''}</span></div>`; }).join('')}</div>
+      <div class="card"><h3>Measurements to verify</h3>${S.props.filter(x => !isV(x, 'building') || !isV(x, 'land')).map(x => `<form data-form="verify" data-id="${x.id}" style="padding:10px 0;border-top:1px solid var(--line)"><b>${esc(x.label)}</b><div class="small muted">${esc(x.address)} &middot; ${x.source === 'satellite' ? 'customer satellite trace' : 'estimate'}</div>
+        <div class="row" style="margin-top:8px"><label class="grow">Building sq ft${isV(x, 'building') ? ' (automatic)' : ''}<input name="building" type="number" min="1" value="${x.building}" ${isV(x, 'building') ? 'readonly' : ''}></label><label class="grow">Land sq ft<input name="land" type="number" min="0" value="${x.land}"></label><button class="btn sm primary" style="align-self:flex-end">Verify</button></div></form>`).join('') || '<p class="muted small">Nothing waiting.</p>'}</div>
       <div class="card"><h3>Front-page banner</h3>${S.promos.map(p => `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><span class="grow">${pill(p.tag)} ${esc(p.text)}</span><button class="btn sm" data-act="rmPromo" data-id="${p.id}" aria-label="Remove">&times;</button></div>`).join('')}
         <form data-form="promo" class="row" style="margin-top:10px"><select name="tag" style="width:auto"><option>Promotion</option><option>News</option><option>Update</option></select><input class="grow" name="text" type="text" placeholder="Announcement text" aria-label="Announcement text"><button class="btn sm primary">Add</button></form></div>
       <div class="card"><h3>System status</h3>${svc.map(([n, s, ok]) => `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><span>${n}</span>${pill(s, ok ? 'ok' : 'warn')}</div>`).join('')}</div>
@@ -342,13 +347,13 @@
       this.map = new google.maps.Map(el, { center: p.center, zoom: 19, mapTypeId: 'satellite', tilt: 0, disableDefaultUI: true, zoomControl: true });
       const mk = (k, color) => {
         const path = new google.maps.MVCArray((p.paths[k] || []).map(x => new google.maps.LatLng(x.lat, x.lng)));
-        const g = new google.maps.Polygon({ map: this.map, editable: true, clickable: false, strokeColor: color, fillColor: color, fillOpacity: 0.18, strokeWeight: 2 });
+        const g = new google.maps.Polygon({ map: this.map, editable: !(k === 'building' && p.auto), clickable: false, strokeColor: color, fillColor: color, fillOpacity: 0.18, strokeWeight: 2 });
         g.setPath(path);
         ['insert_at', 'set_at', 'remove_at'].forEach(e => path.addListener(e, () => this.measure()));
         return g;
       };
       this.poly = { land: mk('land', '#ffe08a'), building: mk('building', '#6ec1ff') };
-      this.map.addListener('click', e => this.poly[p.trace || 'building'].getPath().push(e.latLng));
+      this.map.addListener('click', e => { const k = p.trace || 'building'; if (k === 'building' && p.auto) return; this.poly[k].getPath().push(e.latLng); });
       if (p.paths.building.length > 2 || p.paths.land.length > 2) this.measure();
     },
     measure() {
@@ -384,13 +389,13 @@
       if (cfg.GOOGLE_MAPS_KEY) { try { await gmap.locate(p); toast(p.auto ? 'Building outline found. Now click the corners of the lot.' : 'Click the corners of the building, then switch to the lot'); } catch (e) { estimate(p); toast('Satellite lookup failed, showing an estimate'); } } else estimate(p);
       render();
     },
-    trace(d) { ui.prop.trace = d.k; render(); }, traceClear() { const g = gmap.poly[ui.prop.trace || 'building']; if (g) g.getPath().clear(); gmap.measure(); },
+    trace(d) { ui.prop.trace = d.k; render(); }, traceClear() { const k = ui.prop.trace || 'building'; if (k === 'building' && ui.prop.auto) return toast('The building outline is set automatically and cannot be changed'); const g = gmap.poly[k]; if (g) g.getPath().clear(); gmap.measure(); },
     saveProp() { const p = ui.prop; if (!(p.building > 0)) return toast('Building footprint must be above zero');
-      S.props.push({ id: APN.uid('P'), label: p.label.trim() || p.address.split(',')[0], address: p.address.trim(), type: p.type, building: +p.building, land: +p.land || 0, source: p.source }); ui.prop = null; save(); toast('Property saved'); render(); },
+      S.props.push({ id: APN.uid('P'), label: p.label.trim() || p.address.split(',')[0], address: p.address.trim(), type: p.type, building: +p.building, land: +p.land || 0, source: p.source, verified: { building: !!p.auto, land: false } }); ui.prop = null; save(); toast(p.auto ? 'Property saved. Lot size is pending verification.' : 'Property saved. Measurements are pending verification.'); render(); },
     delProp(d) { S.props = S.props.filter(p => p.id !== d.id); S.cart = S.cart.filter(c => c.propId !== d.id); save(); render(); },
     orderFor(d) { ui.order.propId = d.id; ui.cTab = 'order'; render(); },
     oSector(d) { Object.assign(ui.order, { sector: d.k, services: [], immediate: false }); render(); }, oFreq(d) { ui.order.freq = d.k; render(); },
-    addCart() { S.cart.push(JSON.parse(JSON.stringify(ui.order))); ui.order.services = []; save(); toast('Added to cart'); render(); },
+    addCart() { const pr = S.props.find(x => x.id === ui.order.propId); if (!pr || !isV(pr, APN.sector(ui.order.sector).basis)) return; S.cart.push(JSON.parse(JSON.stringify(ui.order))); ui.order.services = []; save(); toast('Added to cart'); render(); },
     rmCart(d) { S.cart.splice(+d.i, 1); save(); render(); },
     checkout() {
       for (const c of S.cart) { const q = APN.quote(c, S), p = S.props.find(x => x.id === c.propId); if (!q) continue;
@@ -431,6 +436,7 @@
       S.user = { name, email: v.email, role: ui.loginRole }; if (ui.loginRole === 'contractor') S.contractor.name = name; save();
       go({ customer: 'console', contractor: cleared() ? 'contractor' : 'vetting', ops: 'ops' }[ui.loginRole]);
     }
+    if (f.dataset.form === 'verify') { const x = S.props.find(q => q.id === f.dataset.id); if (x) { x.building = Math.max(1, +v.building || x.building); x.land = Math.max(0, +v.land || 0); x.verified = { building: true, land: true }; save(); toast('Measurements verified'); render(); } }
     if (f.dataset.form === 'promo' && (v.text || '').trim()) { S.promos.push({ id: APN.uid('N'), tag: v.tag, text: v.text.trim() }); save(); render(); }
   });
   window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
