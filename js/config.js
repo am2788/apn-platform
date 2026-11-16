@@ -3,7 +3,7 @@
    they live in the backend (Xano environment variables). */
 window.APN_CONFIG = {
   // Google Maps Platform browser key (Maps JavaScript + Geocoding + Places). Restrict it by HTTP referrer.
-  GOOGLE_MAPS_KEY: '',
+  GOOGLE_MAPS_KEY: 'AIzaSyDfHjuHQzhUg1vquSLxVi_DYob3egZXAdI',
   // Stripe publishable key (pk_live_... / pk_test_...).
   STRIPE_PUBLISHABLE_KEY: '',
   // Xano API group base URL, e.g. https://xr36-ytey-jl5h.n7e.xano.io/api:XXXXXXXX
