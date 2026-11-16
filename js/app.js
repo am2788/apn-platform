@@ -328,8 +328,14 @@
     },
     mount() {
       const el = $('#gmap'), p = ui.prop; if (!el || !p.center || !window.google) return;
-      this.map = new google.maps.Map(el, { center: p.center, zoom: 20, mapTypeId: 'satellite', tilt: 0, disableDefaultUI: true, zoomControl: true });
-      const mk = (k, color) => { const g = new google.maps.Polygon({ map: this.map, paths: p.paths[k], editable: true, strokeColor: color, fillColor: color, fillOpacity: 0.18, strokeWeight: 2 }); const up = () => this.measure(); ['insert_at', 'set_at', 'remove_at'].forEach(e => g.getPath().addListener(e, up)); return g; };
+      this.map = new google.maps.Map(el, { center: p.center, zoom: 19, mapTypeId: 'satellite', tilt: 0, disableDefaultUI: true, zoomControl: true });
+      const mk = (k, color) => {
+        const path = new google.maps.MVCArray((p.paths[k] || []).map(x => new google.maps.LatLng(x.lat, x.lng)));
+        const g = new google.maps.Polygon({ map: this.map, editable: true, clickable: false, strokeColor: color, fillColor: color, fillOpacity: 0.18, strokeWeight: 2 });
+        g.setPath(path);
+        ['insert_at', 'set_at', 'remove_at'].forEach(e => path.addListener(e, () => this.measure()));
+        return g;
+      };
       this.poly = { land: mk('land', '#ffe08a'), building: mk('building', '#6ec1ff') };
       this.map.addListener('click', e => this.poly[p.trace || 'building'].getPath().push(e.latLng));
     },
