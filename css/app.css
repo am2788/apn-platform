@@ -140,3 +140,4 @@ section.band{padding:52px 0}section.band.alt{background:var(--card);border-block
 .faq summary{cursor:pointer;font-weight:600}.faq summary:focus-visible{outline:2px solid var(--blue);outline-offset:4px}
 .legal h3{margin-top:1.2em}.legal h3:first-child{margin-top:0}
 .flinks a{color:inherit;opacity:.85}
+.trackmap{height:340px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--soft)}

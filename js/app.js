@@ -24,6 +24,7 @@
   const role = () => S.user && S.user.role;
   const cleared = () => APN.GATE.every(k => S.contractor.vetting[k] === 'verified');
   const ME = 'me';
+  const ACTIVE_JOB = ['claimed', 'onsite'];
 
   const ESCROW = { held: ['Funds held', 'info'], transit: ['In transit', 'warn'], disputed: ['Disputed', 'bad'], released: ['Released', 'ok'], refunded: ['Refunded', ''] };
   const STATUS = { open: 'Awaiting contractor', claimed: 'Claimed', onsite: 'On site', review: 'Photo review', released: 'Completed', disputed: 'Disputed', refunded: 'Refunded' };
@@ -205,7 +206,10 @@
   }
   function cOrders() {
     const mine = myTickets().slice().reverse();
-    return `<div class="card"><h3>Orders</h3><div class="scroll-x"><table><tr><th>Order</th><th>Service</th><th>Status</th><th>Escrow</th><th>Photos</th><th class="r">Total</th><th></th></tr>
+    const tracking = mine.filter(x => APN.track.live(x)).map(x => `<div class="card" style="margin-bottom:16px"><div class="row between"><h3 style="margin:0">${esc(APN.sector(x.sector).short)} &middot; ${x.id}</h3><b id="track-${x.id}-st" class="small">Waiting for the contractor to share a location…</b></div>
+      <p class="small muted" style="margin:4px 0 10px">${esc(x.address)}. You can see your contractor only while this job is in progress. It disappears when the job is submitted.</p>
+      ${cfg.GOOGLE_MAPS_KEY ? `<div id="track-${x.id}" data-track="${x.id}" data-who="customer" class="trackmap"></div>` : '<p class="small muted">Live map needs the Google Maps key.</p>'}</div>`).join('');
+    return tracking + `<div class="card"><h3>Orders</h3><div class="scroll-x"><table><tr><th>Order</th><th>Service</th><th>Status</th><th>Escrow</th><th>Photos</th><th class="r">Total</th><th></th></tr>
       ${mine.map(x => `<tr><td class="num">${x.id}<div class="small muted">${ago(x.created)}</div></td><td><b>${esc(APN.sector(x.sector).short)}</b> &middot; ${esc(tierName(x))}<div class="small muted">${esc(x.address)}</div></td><td>${pill(STATUS[x.status])}</td><td>${escrowPill(x)}</td><td class="num">${Object.keys(x.photos).length}/10</td><td class="r num">${money(x.total)}</td>
         <td class="r">${['claimed', 'onsite', 'review'].includes(x.status) ? `<button class="btn sm danger" data-act="dispute" data-id="${x.id}">Dispute</button>` : ''}</td></tr>`).join('') || `<tr><td colspan="7" class="muted">No orders yet.</td></tr>`}</table></div></div>
     <div class="card" style="margin-top:16px"><h3>Receipts</h3>${S.receipts.filter(r => r.mine).map(r => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--line)"><div class="grow"><b class="num">${r.id}</b> &middot; ${esc(r.line)}<div class="small muted num">${r.iso} &middot; audit hash ${r.hash}</div></div><b class="num">${money(r.total)}</b></div>`).join('') || `<p class="muted small">Receipts appear here when escrow is released.</p>`}</div>`;
@@ -245,10 +249,20 @@
     const slots = APN.PHOTO_POINTS.flatMap((p, i) => [[i * 2, p, 'Before'], [i * 2 + 1, p, 'After']]);
     return `<button class="btn sm" data-act="closeJob">&lsaquo; All my jobs</button><div class="card" style="margin-top:12px"><div class="row between"><h3>${esc(APN.sector(job.sector).name)} &middot; ${esc(tierName(job))}</h3>${pill(STATUS[job.status])}</div>
       <p>${esc(job.address)}<br><span class="small muted">${sqft(job.area)} &middot; ${esc(job.window || '')} &middot; ${job.services.map(esc).join(', ')}</span></p>
+      ${editable ? navBlock(job) : ''}
       <h4>Ten-photo verification (${n}/10)</h4><div class="bar" style="margin-bottom:12px"><i style="width:${n * 10}%"></i></div>
       <div class="photos">${slots.map(([i, p, w]) => { const u = (ui.photoURL[job.id] || {})[i]; return `<label class="photo ${job.photos[i] ? 'done' : ''}" ${u ? `style="background-image:url(${u})"` : ''}><span><b>${w}</b></span><span>${esc(p)}</span><span class="small">${job.photos[i] ? 'Added' : 'Tap to add'}</span>${editable ? `<input type="file" accept="image/*" data-photo="${i}" aria-label="${w} photo: ${esc(p)}">` : ''}</label>`; }).join('')}</div>
       <div class="row" style="margin-top:14px">${job.status === 'claimed' ? `<button class="btn" data-act="onsite" data-id="${job.id}">Mark on site</button>` : ''}
       ${editable ? `<button class="btn primary" data-act="submitJob" data-id="${job.id}" ${n < 10 ? 'disabled' : ''}>${n < 10 ? `Add ${10 - n} more photo${10 - n === 1 ? '' : 's'} to submit` : 'Submit for review'}</button>` : `<span class="muted small">${job.status === 'review' ? 'Submitted. Escrow releases after review.' : ''}</span>`}</div></div>`;
+  }
+  function navBlock(job) {
+    const url = APN.directionsUrl(job.address);
+    if (!job.enroute) return `<div class="note" style="margin:0 0 14px"><div class="row between"><div class="grow"><b>Heading to the job?</b><div class="small muted">Tap On my way to open Google Maps directions. The customer will see your live position until you submit the job.</div></div>
+      <button class="btn primary" data-act="enroute" data-id="${job.id}">On my way</button></div></div>`;
+    return `<div class="card" style="margin:0 0 14px"><div class="row between"><b id="route-${job.id}-st" class="small">Finding your location…</b>
+      <span class="row"><a class="btn sm primary" href="${esc(url)}" target="_blank" rel="noopener">Open in Google Maps</a><button class="btn sm" data-act="stopShare" data-id="${job.id}">Stop sharing</button></span></div>
+      ${cfg.GOOGLE_MAPS_KEY ? `<div id="route-${job.id}" data-track="${job.id}" data-who="contractor" class="trackmap" style="margin-top:10px"></div>` : ''}
+      <p class="small muted" style="margin:8px 0 0">Keep this page open while you drive so your position keeps updating. Sharing ends automatically when you submit the job.</p></div>`;
   }
   function kEarn() {
     const c = S.contractor, P = APN.PAYOUT, pct = APN.split(c.reviews), capAt = (P.cap - P.base) / P.step * P.every;
@@ -307,6 +321,7 @@
     APN.atmo.particles.sync();
     if (r === 'console' && ui.cTab === 'props' && ui.prop && ui.prop.measured && cfg.GOOGLE_MAPS_KEY) gmap.mount();
     ui.fresh = null;
+    APN.track.after(S, ME, role());
   }
 
   /* ---------- property measurement ---------- */
@@ -366,6 +381,8 @@
     }
   };
 
+  APN.loadMaps = () => gmap.load();
+
   /* ---------- actions ---------- */
   const ticket = id => S.tickets.find(x => x.id === id);
   async function receipt(tk) {
@@ -405,11 +422,13 @@
     },
     claim(d) { const x = ticket(d.id); if (!x || x.status !== 'open' || !cleared()) return; Object.assign(x, { status: 'claimed', escrow: 'transit', claimedBy: ME }); save(); ui.kTab = 'mine'; ui.job = x.id; toast('Ticket claimed'); go('contractor'); },
     openJob(d) { ui.job = d.id; render(); }, closeJob() { ui.job = null; render(); },
+    enroute(d) { const x = ticket(d.id); if (!x || !ACTIVE_JOB.includes(x.status)) return; Object.assign(x, { enroute: true, enrouteAt: Date.now(), tkey: x.tkey || APN.track.tkey() }); save(); window.open(APN.directionsUrl(x.address), '_blank', 'noopener'); render(); },
+    stopShare(d) { const x = ticket(d.id); if (!x) return; x.enroute = false; save(); APN.track.stop(x); toast('Location sharing stopped'); render(); },
     onsite(d) { ticket(d.id).status = 'onsite'; save(); render(); },
-    submitJob(d) { const x = ticket(d.id); if (Object.keys(x.photos).length < 10) return; x.status = 'review'; save(); toast('Submitted for review'); render(); },
-    dispute(d) { const x = ticket(d.id); x.status = 'disputed'; x.escrow = 'disputed'; save(); toast('Marked as disputed. Funds stay held.'); render(); },
-    async release(d) { const x = ticket(d.id); x.status = 'released'; x.escrow = 'released'; await receipt(x); save(); toast('Payment released and receipt issued'); render(); },
-    refund(d) { const x = ticket(d.id); x.status = 'refunded'; x.escrow = 'refunded'; save(); toast('Customer refunded'); render(); },
+    submitJob(d) { const x = ticket(d.id); if (Object.keys(x.photos).length < 10) return; x.status = 'review'; x.enroute = false; save(); APN.track.stop(x); toast('Submitted for review'); render(); },
+    dispute(d) { const x = ticket(d.id); x.status = 'disputed'; x.escrow = 'disputed'; x.enroute = false; save(); APN.track.stop(x); toast('Marked as disputed. Funds stay held.'); render(); },
+    async release(d) { const x = ticket(d.id); x.status = 'released'; x.escrow = 'released'; x.enroute = false; await receipt(x); save(); APN.track.stop(x); toast('Payment released and receipt issued'); render(); },
+    refund(d) { const x = ticket(d.id); x.status = 'refunded'; x.escrow = 'refunded'; x.enroute = false; save(); APN.track.stop(x); toast('Customer refunded'); render(); },
     vet(d) { S.contractor.vetting[d.k] = d.v; save(); render(); },
     rmPromo(d) { S.promos = S.promos.filter(p => p.id !== d.id); save(); render(); }
   };
