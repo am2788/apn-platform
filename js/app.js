@@ -161,7 +161,7 @@
         <button class="btn" data-act="measure">Measure from satellite</button>
         ${p.measured ? `<div class="grid g2" style="gap:10px;margin-top:14px"><div class="field"><label for="p-b">Building footprint (sq ft)</label><input id="p-b" type="number" min="0" data-prop="building" value="${p.building}"></div>
         <div class="field"><label for="p-l">Land, excluding building (sq ft)</label><input id="p-l" type="number" min="0" data-prop="land" value="${p.land}"></div></div>
-        <p class="small muted">${p.source === 'satellite' ? 'Traced on satellite imagery. Adjust the outlines or the numbers if needed.' : 'Estimated without imagery. Live satellite tracing switches on when the Google Maps key is added; until then, correct these numbers by hand.'}</p>
+        <p class="small muted">${p.source === 'satellite' ? (p.auto ? 'Building outline detected automatically. Drag its corners to adjust, then click the corners of the lot.' : 'No automatic outline for this address. Click the corners of the building, then switch to the lot.') : 'Estimated without imagery. Live satellite tracing switches on when the Google Maps key is added; until then, correct these numbers by hand.'}</p>
         <div class="row"><button class="btn primary" data-act="saveProp">Save property</button><button class="btn ghost" data-act="cancelProp">Cancel</button></div>` : ''}</div>
       <div>${p.measured ? (cfg.GOOGLE_MAPS_KEY ? `<div id="gmap"></div><div class="seg" style="margin-top:8px"><button data-act="trace" data-k="building" class="${p.trace !== 'land' ? 'on' : ''}">Trace building</button><button data-act="trace" data-k="land" class="${p.trace === 'land' ? 'on' : ''}">Trace lot</button><button data-act="traceClear">Clear outline</button></div>` : parcelSVG(p)) : `<div class="note">Enter the address and measure. We read the building footprint and the land separately: interior work is priced on the building, grounds work on the land.</div>`}</div></div></div>` : '';
     return `${form}<div class="card"><div class="row between"><h3>Your properties</h3>${p ? '' : `<button class="btn primary sm" data-act="newProp">Add property</button>`}</div>
@@ -324,7 +324,19 @@
       const res = await new google.maps.Geocoder().geocode({ address: p.address });
       if (!res.results.length) throw new Error('not found');
       p.center = res.results[0].geometry.location.toJSON(); p.address = res.results[0].formatted_address;
-      p.paths = { building: [], land: [] }; p.source = 'satellite'; p.measured = true; p.trace = 'building';
+      p.paths = { building: [], land: [] }; p.source = 'satellite'; p.measured = true; p.trace = 'building'; p.auto = false;
+      /* Ask Google for the building outline so the customer does not have to trace it. Falls back to manual tracing. */
+      try {
+        const r = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(p.address)}&extra_computations=BUILDING_AND_ENTRANCES&key=${encodeURIComponent(cfg.GOOGLE_MAPS_KEY)}`);
+        const j = await r.json(), first = (j.results || [])[0] || {};
+        const b = (first.buildings || j.buildings || [])[0], geo = b && b.building_outlines && b.building_outlines[0] && b.building_outlines[0].display_polygon;
+        if (geo) {
+          const rings = geo.type === 'MultiPolygon' ? geo.coordinates.map(c => c[0]) : [geo.coordinates[0]];
+          const area = ring => google.maps.geometry.spherical.computeArea(ring.map(([lng, lat]) => new google.maps.LatLng(lat, lng)));
+          const ring = rings.sort((x, y) => area(y) - area(x))[0];
+          if (ring && ring.length > 3) { p.paths.building = ring.slice(0, -1).map(([lng, lat]) => ({ lat, lng })); p.auto = true; p.trace = 'land'; }
+        } else if (j.status && j.status !== 'OK') console.warn('Building outline lookup:', j.status, j.error_message || '');
+      } catch (e) { console.warn('Building outline lookup failed', e); }
     },
     mount() {
       const el = $('#gmap'), p = ui.prop; if (!el || !p.center || !window.google) return;
@@ -338,6 +350,7 @@
       };
       this.poly = { land: mk('land', '#ffe08a'), building: mk('building', '#6ec1ff') };
       this.map.addListener('click', e => this.poly[p.trace || 'building'].getPath().push(e.latLng));
+      if (p.paths.building.length > 2 || p.paths.land.length > 2) this.measure();
     },
     measure() {
       const p = ui.prop, M2 = 10.7639, area = k => google.maps.geometry.spherical.computeArea(this.poly[k].getPath()) * M2;
@@ -369,7 +382,7 @@
     cancelProp() { ui.prop = null; render(); },
     async measure() {
       const p = ui.prop; if (p.address.trim().length < 6) return toast('Enter the full property address first');
-      if (cfg.GOOGLE_MAPS_KEY) { try { await gmap.locate(p); toast('Click the corners of the building, then switch to the lot'); } catch (e) { estimate(p); toast('Satellite lookup failed, showing an estimate'); } } else estimate(p);
+      if (cfg.GOOGLE_MAPS_KEY) { try { await gmap.locate(p); toast(p.auto ? 'Building outline found. Now click the corners of the lot.' : 'Click the corners of the building, then switch to the lot'); } catch (e) { estimate(p); toast('Satellite lookup failed, showing an estimate'); } } else estimate(p);
       render();
     },
     trace(d) { ui.prop.trace = d.k; render(); }, traceClear() { const g = gmap.poly[ui.prop.trace || 'building']; if (g) g.getPath().clear(); gmap.measure(); },
