@@ -1,0 +1,7 @@
+{
+  "redirects": [
+    { "source": "/(.*)", "has": [{ "type": "host", "value": "www.aetherpropertynetworks.com" }], "destination": "https://aetherpropertynetworks.com/$1", "permanent": true },
+    { "source": "/(.*)", "has": [{ "type": "host", "value": "supportaether.com" }], "destination": "https://aetherpropertynetworks.com/#contact", "permanent": false },
+    { "source": "/(.*)", "has": [{ "type": "host", "value": "www.supportaether.com" }], "destination": "https://aetherpropertynetworks.com/#contact", "permanent": false }
+  ]
+}

@@ -17,7 +17,8 @@
     order: { propId: null, sector: 'str', tier: 0, services: [], freq: 'One-time', immediate: false, afterHours: false },
     prop: null, photoURL: {}, fresh: null
   };
-  const ROUTES = ['home', 'login', 'console', 'contractor', 'vetting', 'ops', 'w2'];
+  const PUBLIC_PAGES = ['faq', 'contact', 'privacy', 'terms'];
+  const ROUTES = ['home', 'login', 'console', 'contractor', 'vetting', 'ops', 'w2'].concat(PUBLIC_PAGES);
   const route = () => { const h = location.hash.replace('#', ''); return ROUTES.includes(h) ? h : 'home'; };
   const go = r => { if (route() === r) render(); else location.hash = r; };
   const role = () => S.user && S.user.role;
@@ -42,7 +43,7 @@
   function renderTop() {
     const r = route(), u = S.user;
     const link = (h, label) => `<a href="#${h}" class="${r === h ? 'on' : ''}">${esc(label)}</a>`;
-    let nav = link('home', t('home'));
+    let nav = link('home', t('home')) + link('faq', 'FAQ') + link('contact', 'Contact');
     if (role() === 'customer' || role() === 'ops') nav += link('console', t('customer'));
     if (role() === 'contractor') nav += link('contractor', t('contractor')) + link('vetting', t('vetting'));
     if (role() === 'ops') nav += link('vetting', t('vetting')) + link('ops', 'Operations');
@@ -66,7 +67,7 @@
     const o = APN.atmo.s.override;
     const b = (k, label) => `<button class="${(!o && k === 'auto') || (o && (o.phase === k || o.cond === k)) ? 'on' : ''}" data-act="atmo" data-k="${k}">${label}</button>`;
     $('#foot').innerHTML = `<div class="wrap"><div class="row between">
-      <div><b style="color:#fff">Aether Property Networks</b><br>A division of Environmental Wellness Lab Groups Inc</div>
+      <div><b style="color:#fff">Aether Property Networks</b><br>A division of Environmental Wellness Lab Groups Inc<div class="small flinks" style="margin-top:8px"><a href="#faq">FAQ</a> &middot; <a href="#contact">Contact</a> &middot; <a href="#privacy">Privacy</a> &middot; <a href="#terms">Terms</a></div></div>
       <div><div class="small" style="margin-bottom:6px">Preview the living theme</div><div class="seg">${b('auto', 'Auto')}${b('day', 'Day')}${b('dusk', 'Dusk')}${b('night', 'Night')}${b('rain', 'Rain')}${b('snow', 'Snow')}</div></div>
       </div>${cfg.DEMO_MODE ? `<p class="small" style="margin:14px 0 0">Demo mode: data is stored in this browser only and no payment is taken. <a href="#home" data-act="reset">Reset demo data</a></p>` : ''}</div>`;
   }
@@ -301,7 +302,7 @@
     if (need && !need.includes(role())) { if (r === 'ops' && role()) r = 'home'; else r = 'login'; }
     if (r === 'login' && S.user) r = { customer: 'console', contractor: cleared() ? 'contractor' : 'vetting', ops: 'ops' }[role()];
     renderPromo(); renderTop(); renderFoot();
-    $('#view').innerHTML = { home: vHome, login: vLogin, console: vConsole, contractor: vContractor, vetting: vVetting, ops: vOps, w2: vW2 }[r]();
+    $('#view').innerHTML = PUBLIC_PAGES.includes(r) ? APN.pages[r]() : { home: vHome, login: vLogin, console: vConsole, contractor: vContractor, vetting: vVetting, ops: vOps, w2: vW2 }[r]();
     document.documentElement.lang = S.lang;
     APN.atmo.particles.sync();
     if (r === 'console' && ui.cTab === 'props' && ui.prop && ui.prop.measured && cfg.GOOGLE_MAPS_KEY) gmap.mount();
