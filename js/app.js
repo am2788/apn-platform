@@ -327,15 +327,14 @@
       p.paths = { building: [], land: [] }; p.source = 'satellite'; p.measured = true; p.trace = 'building'; p.auto = false;
       /* Ask Google for the building outline so the customer does not have to trace it. Falls back to manual tracing. */
       try {
-        const r = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(p.address)}&extra_computations=BUILDING_AND_ENTRANCES&key=${encodeURIComponent(cfg.GOOGLE_MAPS_KEY)}`);
-        const j = await r.json(), first = (j.results || [])[0] || {};
-        const b = (first.buildings || j.buildings || [])[0], geo = b && b.building_outlines && b.building_outlines[0] && b.building_outlines[0].display_polygon;
+        const r = await fetch('/api/outline?address=' + encodeURIComponent(p.address));
+        const j = r.ok ? await r.json() : {}, geo = j.outline;
         if (geo) {
           const rings = geo.type === 'MultiPolygon' ? geo.coordinates.map(c => c[0]) : [geo.coordinates[0]];
           const area = ring => google.maps.geometry.spherical.computeArea(ring.map(([lng, lat]) => new google.maps.LatLng(lat, lng)));
           const ring = rings.sort((x, y) => area(y) - area(x))[0];
           if (ring && ring.length > 3) { p.paths.building = ring.slice(0, -1).map(([lng, lat]) => ({ lat, lng })); p.auto = true; p.trace = 'land'; }
-        } else if (j.status && j.status !== 'OK') console.warn('Building outline lookup:', j.status, j.error_message || '');
+        }
       } catch (e) { console.warn('Building outline lookup failed', e); }
     },
     mount() {
