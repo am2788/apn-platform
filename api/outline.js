@@ -1,7 +1,7 @@
 /* Server-side building outline lookup.
    Google refuses website-restricted keys on the Geocoding web service, so this runs on the server
    with GOOGLE_SERVER_KEY (set in Vercel → Project → Settings → Environment Variables). The key never reaches the browser. */
-const ALLOWED = /^https:\/\/([a-z0-9-]+\.)?(aetherpropertynetworks\.com|apn-platform-chi\.vercel\.app)$/i;
+const ALLOWED = /^https:\/\/([a-z0-9-]+\.)?(aetherpropertynetworks\.com|supportaether\.com|apn-platform-chi\.vercel\.app)$/i;
 
 module.exports = async (req, res) => {
   const origin = req.headers.origin || (req.headers.referer || '').replace(/^(https?:\/\/[^/]+).*$/, '$1');

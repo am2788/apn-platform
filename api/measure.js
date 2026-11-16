@@ -1,7 +1,7 @@
 /* Server-side property measurement.
    Combines Google (building outline) with Regrid (county parcel lines, matched building footprints, assessor records).
    Keys live only in Vercel env vars: GOOGLE_SERVER_KEY, REGRID_TOKEN. Nothing here reaches the browser. */
-const ALLOWED = /^https:\/\/([a-z0-9-]+\.)?(aetherpropertynetworks\.com|apn-platform-chi\.vercel\.app)$/i;
+const ALLOWED = /^https:\/\/([a-z0-9-]+\.)?(aetherpropertynetworks\.com|supportaether\.com|apn-platform-chi\.vercel\.app)$/i;
 const SQFT_PER_M2 = 10.76391041671;
 
 /* Area of a GeoJSON ring in square feet (local equirectangular projection, accurate for property-sized shapes). */
