@@ -16,7 +16,8 @@
       ['What are the ten photos?', () => `Five checkpoints on the property, each photographed before and after the work. The record is attached to your ticket.`],
       ['What do the tiers mean?', () => `Each sector has three tiers with their own names and scope, from routine upkeep to full restoration. The tier names differ by sector but the rates are the same.`],
       ['Are there fees on top of the price?', () => `After-hours dispatch adds ${money(F.afterHours)}. Immediate pest response adds ${money(F.pestImmediate)}. Both are shown before you pay.`],
-      ['Do you offer discounts?', () => `Yes. Ordering from more than one sector on the same property earns a bundle discount, and larger portfolios earn a volume discount. Both are applied automatically at checkout.`],
+      ['Do you offer discounts?', () => `Yes. Ordering from more than one sector on the same property earns a bundle discount. Portfolios also earn a volume discount on the rate: ${Math.round(APN.PORTFOLIO[1].pct * 100)}% off once you have ${APN.PORTFOLIO[1].min} properties and ${Math.round(APN.PORTFOLIO[0].pct * 100)}% off at ${APN.PORTFOLIO[0].min} or more. Both apply automatically at checkout.`],
+      ['Can cleanings be ordered automatically for my rental?', () => `Yes. Add your booking calendar link (the iCal link from Airbnb, Vrbo or your property manager) to a property under Auto-clean. When a stay ends we create the cleaning order for you, or ask you to approve each one if you prefer. The calendar shows booked dates only, never guest details.`],
       ['Where do you operate?', () => `We are launching in Kentucky and adding areas as vetted field partners join. Email ${mail} to ask about your area.`],
       ['What is the Hospital sector?', () => `Hospital and clinical environments are coming soon. They will be staffed by our own W-2 teams on fixed shifts rather than independent contractors.`]
     ]],

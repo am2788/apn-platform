@@ -7,7 +7,7 @@
   APN.RATES = [0.10, 0.45, 1.20];
   APN.FEES = { pestImmediate: 350, afterHours: 100, transit: 25 };
   APN.BUNDLE_OFF = [0.05, 0.10, 0.20];           // 2+ sectors on one property
-  APN.PORTFOLIO = [{ min: 20, off: 0.07 }, { min: 8, off: 0.02 }];
+  APN.PORTFOLIO = [{ min: 10, pct: 0.15 }, { min: 5, pct: 0.07 }];   // percent off the rate by number of properties on the account
   APN.RES_GUARD = { over: 15000, anchor: 2200 };  // residential single-property safeguard
   APN.PAYOUT = { base: 60, step: 2, every: 25, cap: 64, bonus: 250 };
   APN.FREQ = ['One-time', 'Weekly', 'Bi-weekly', 'Monthly', 'Daily'];
@@ -105,7 +105,7 @@
   APN.GATE = ['issa', 'bond', 'background'];
 
   /* ---------- pricing ---------- */
-  APN.portfolioOff = n => (APN.PORTFOLIO.find(p => n >= p.min) || { off: 0 }).off;
+  APN.portfolioPct = n => (APN.PORTFOLIO.find(p => n >= p.min) || { pct: 0 }).pct;
   APN.billableArea = (sec, prop) => {
     let a = sec.basis === 'land' ? prop.land : prop.building;
     let guarded = false;
@@ -120,11 +120,12 @@
     const sectorsOnProp = new Set(st.cart.filter(c => c.propId === item.propId).map(c => c.sector));
     sectorsOnProp.add(item.sector);
     const bundle = sectorsOnProp.size >= 2 ? APN.BUNDLE_OFF[item.tier] : 0;
-    const port = APN.portfolioOff(st.props.length);
-    const rate = Math.max(0.01, +(APN.RATES[item.tier] - bundle - port).toFixed(2));
+    const portPct = APN.portfolioPct(st.props.length);
+    const port = +((APN.RATES[item.tier] - bundle) * portPct).toFixed(4);
+    const rate = Math.max(0.01, +(APN.RATES[item.tier] - bundle - port).toFixed(4));
     const service = +(area * rate).toFixed(2);
     const fees = (item.immediate ? APN.FEES.pestImmediate : 0) + (item.afterHours ? APN.FEES.afterHours : 0);
-    return { area, guarded, base: APN.RATES[item.tier], bundle, port, rate, service, fees, total: +(service + fees).toFixed(2), basis: sec.basis };
+    return { area, guarded, base: APN.RATES[item.tier], bundle, port, portPct, rate, service, fees, total: +(service + fees).toFixed(2), basis: sec.basis };
   };
   APN.split = reviews => Math.min(APN.PAYOUT.cap, APN.PAYOUT.base + APN.PAYOUT.step * Math.floor(reviews / APN.PAYOUT.every));
   APN.payout = (t, reviews) => {

@@ -15,7 +15,7 @@
   const ui = {
     cTab: 'overview', kTab: 'overview', promo: 0, promoOff: false, job: null, loginTab: 'in', loginRole: 'customer',
     order: { propId: null, sector: 'str', tier: 0, services: [], freq: 'One-time', immediate: false, afterHours: false },
-    prop: null, photoURL: {}, fresh: null
+    prop: null, cal: null, photoURL: {}, fresh: null
   };
   const PUBLIC_PAGES = ['faq', 'contact', 'privacy', 'terms'];
   const ROUTES = ['home', 'login', 'console', 'contractor', 'vetting', 'ops', 'w2'].concat(PUBLIC_PAGES);
@@ -156,6 +156,51 @@
   }
   const isV = (x, k) => !x.verified || !!x.verified[k];
   const vp = (x, k, label) => pill(label + (isV(x, k) ? ' verified' : ' pending'), isV(x, k) ? 'ok' : 'warn');
+  /* ---------- auto-clean from a booking calendar ---------- */
+  const STR = () => APN.sector('str');
+  const calProp = () => S.props.find(x => x.id === ui.cal);
+  function calCard() {
+    const p = calProp(); if (!p) return '';
+    const c = p.cal, sec = STR(), pend = c.pending || [];
+    return `<div class="card" style="margin-bottom:16px"><div class="row between"><h3 style="margin:0">Auto-clean: ${esc(p.label)}</h3><button class="btn sm ghost" data-act="calClose">Close</button></div>
+      <p class="small muted">Paste your booking calendar link (the iCal / .ics link from Airbnb, Vrbo or your property manager). When a stay ends, we dispatch a cleaner. The link only shows booked dates, never guest details.</p>
+      <div class="field"><label for="c-url">Calendar link</label><input id="c-url" type="text" data-cal="url" value="${esc(c.url || '')}" placeholder="https://www.airbnb.com/calendar/ical/....ics" autocomplete="off"></div>
+      <div class="grid g2" style="gap:10px"><div class="field"><label for="c-tier">Clean after every stay</label><select id="c-tier" data-cal="tier">${sec.tiers.map((t, i) => `<option value="${i}" ${+c.tier === i ? 'selected' : ''}>${esc(t[0])} (${money(APN.RATES[i])}/sq ft)</option>`).join('')}</select></div>
+        <div class="field"><label for="c-mode">When a stay ends</label><select id="c-mode" data-cal="confirm"><option value="0" ${!c.confirm ? 'selected' : ''}>Order the clean automatically</option><option value="1" ${c.confirm ? 'selected' : ''}>Ask me to approve each one</option></select></div></div>
+      <div class="grid g2" style="gap:8px">${sec.services.map(([n]) => `<label class="opt ${(c.services || []).includes(n) ? 'on' : ''}"><input type="checkbox" data-cal-svc="${esc(n)}" ${(c.services || []).includes(n) ? 'checked' : ''}><span><b>${esc(n)}</b></span></label>`).join('')}</div>
+      <label class="opt ${c.on ? 'on' : ''}" style="margin-top:10px"><input type="checkbox" data-cal="on" ${c.on ? 'checked' : ''}><span><b>Auto-clean is on for this property</b><small>Each check-out creates a paid order held in escrow. Turn it off any time.</small></span></label>
+      <div class="row" style="margin-top:12px"><button class="btn primary" data-act="calSave">Save and sync now</button>${c.last ? `<span class="small muted">Last checked ${ago(c.last)}${c.found != null ? ` &middot; ${c.found} upcoming check-out${c.found === 1 ? '' : 's'}` : ''}</span>` : ''}</div>
+      ${c.err ? `<p class="small" style="color:var(--bad);margin:8px 0 0" role="alert">${esc(c.err)}</p>` : ''}
+      ${pend.length ? `<h4 style="margin-top:16px">Waiting for your approval</h4>${pend.map((e, i) => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--line)"><span>Check-out <b>${esc(e.checkOut)}</b>${e.sameDay ? ' ' + pill('Same-day turnover', 'warn') : ''}${e.note ? `<div class="small muted">${esc(e.note)}</div>` : ''}</span><span class="row"><button class="btn sm primary" data-act="calApprove" data-i="${i}">Order clean</button><button class="btn sm" data-act="calSkip" data-i="${i}">Skip</button></span></div>`).join('')}` : ''}</div>`;
+  }
+  function calOrder(p, e) {
+    const c = p.cal, item = { propId: p.id, sector: 'str', tier: +c.tier || 0, services: (c.services && c.services.length ? c.services : STR().services.slice(0, 2).map(x => x[0])), freq: 'One-time', immediate: false, afterHours: false };
+    const q = APN.quote(item, S); if (!q) return false;
+    S.tickets.push({ id: APN.uid('DT'), sector: 'str', tier: item.tier, services: item.services, freq: 'One-time', address: p.address, propId: p.id, area: q.area, service: q.service, total: q.total, immediate: false, afterHours: false, window: `Check-out ${e.checkOut}${e.sameDay ? ' (same-day turnover)' : ''}`, sameDay: e.sameDay, auto: true, status: 'open', escrow: 'held', photos: {}, created: Date.now(), mine: true });
+    return true;
+  }
+  async function calSync(p, manual) {
+    const c = p.cal; if (!c || !c.url) return;
+    c.last = Date.now(); c.err = '';
+    try {
+      const r = await fetch('/api/ical?url=' + encodeURIComponent(c.url)), j = await r.json();
+      if (!r.ok) throw new Error(j.error);
+      c.found = j.checkouts.length; c.seen = c.seen || {}; c.pending = c.pending || []; let made = 0;
+      if (c.on) for (const e of j.checkouts) {
+        const k = e.uid + '|' + e.checkOut; if (c.seen[k]) continue; c.seen[k] = 1;
+        if (!isV(p, 'building')) { c.pending.push(Object.assign({ note: 'Waiting for our team to verify this property\'s measurements.' }, e)); continue; }
+        if (c.confirm) c.pending.push(e); else if (calOrder(p, e)) made++;
+      }
+      save(); if (made) toast(`${made} cleaning${made === 1 ? '' : 's'} ordered from your calendar`); else if (manual) toast(c.on ? 'Calendar checked. Nothing new to order.' : 'Calendar checked. Turn auto-clean on to start ordering.');
+    } catch (e) {
+      c.err = { bad_url: 'That link could not be used. Use the https calendar (.ics) link from your booking platform.', fetch_failed: 'The calendar link did not respond. Check that it is still active.', too_large: 'That calendar is too large to read.' }[e.message] || 'We could not read that calendar right now. Try again shortly.';
+      save();
+    }
+    render();
+  }
+  let lastAuto = 0;
+  function calAuto() { if (role() !== 'customer' || Date.now() - lastAuto < 15 * 60e3) return; lastAuto = Date.now(); S.props.filter(p => p.cal && p.cal.on && p.cal.url).forEach(p => calSync(p, false)); }
+
   function cProps() {
     const p = ui.prop;
     const form = p ? `<div class="card" style="margin-bottom:16px"><h3>Add a property</h3><div class="grid g2">
@@ -168,9 +213,9 @@
         <p class="small muted">${p.source === 'satellite' ? (p.auto ? 'Building footprint measured automatically and locked. Click the corners of the lot; our team verifies the lot before grounds work can be ordered.' : 'No automatic outline for this address. Trace the building and the lot; our team verifies both before you can order.') : 'Estimated without imagery. Our team verifies these figures before you can order.'}</p>
         <div class="row"><button class="btn primary" data-act="saveProp">Save property</button><button class="btn ghost" data-act="cancelProp">Cancel</button></div>` : ''}</div>
       <div>${p.measured ? (cfg.GOOGLE_MAPS_KEY ? `<div id="gmap"></div><div class="seg" style="margin-top:8px"><button data-act="trace" data-k="building" class="${p.trace !== 'land' ? 'on' : ''}" ${p.auto ? 'disabled' : ''}>${p.auto ? 'Building locked' : 'Trace building'}</button><button data-act="trace" data-k="land" class="${p.trace === 'land' ? 'on' : ''}">Trace lot</button><button data-act="traceClear">Clear outline</button></div>` : parcelSVG(p)) : `<div class="note">Enter the address and measure. We read the building footprint and the land separately: interior work is priced on the building, grounds work on the land.</div>`}</div></div></div>` : '';
-    return `${form}<div class="card"><div class="row between"><h3>Your properties</h3>${p ? '' : `<button class="btn primary sm" data-act="newProp">Add property</button>`}</div>
+    return `${form}${calCard()}<div class="card"><div class="row between"><h3>Your properties</h3>${p ? '' : `<button class="btn primary sm" data-act="newProp">Add property</button>`}</div>
       <div class="scroll-x"><table><tr><th>Property</th><th>Type</th><th class="r">Building</th><th class="r">Land</th><th>Verification</th><th></th></tr>
-      ${S.props.map(x => `<tr><td><b>${esc(x.label)}</b><div class="small muted">${esc(x.address)}</div></td><td>${esc(x.type)}</td><td class="r num">${sqft(x.building)}</td><td class="r num">${sqft(x.land)}</td><td>${vp(x, 'building', 'Building')} ${vp(x, 'land', 'Land')}</td><td class="r"><button class="btn sm" data-act="orderFor" data-id="${x.id}">Order</button> <button class="btn sm danger" data-act="delProp" data-id="${x.id}">Remove</button></td></tr>`).join('') || `<tr><td colspan="6" class="muted">No properties yet.</td></tr>`}</table></div></div>`;
+      ${S.props.map(x => `<tr><td><b>${esc(x.label)}</b><div class="small muted">${esc(x.address)}</div></td><td>${esc(x.type)}</td><td class="r num">${sqft(x.building)}</td><td class="r num">${sqft(x.land)}</td><td>${vp(x, 'building', 'Building')} ${vp(x, 'land', 'Land')}</td><td class="r"><button class="btn sm" data-act="orderFor" data-id="${x.id}">Order</button> <button class="btn sm" data-act="calOpen" data-id="${x.id}">Auto-clean${x.cal && x.cal.on ? ' &#10003;' : ''}</button> <button class="btn sm danger" data-act="delProp" data-id="${x.id}">Remove</button></td></tr>`).join('') || `<tr><td colspan="6" class="muted">No properties yet.</td></tr>`}</table></div></div>`;
   }
   function cOrder() {
     if (!S.props.length) return `<div class="card"><p>Add a property first so we can measure it.</p><button class="btn primary" data-act="newProp">Add property</button></div>`;
@@ -193,7 +238,7 @@
         <tr><td>${q.basis === 'land' ? 'Land area' : 'Building area'}</td><td class="r num">${sqft(q.area)}</td></tr>
         ${q.guarded ? `<tr><td colspan="2" class="small muted">Large residential lot: priced on a ${sqft(APN.RES_GUARD.anchor)} core footprint.</td></tr>` : ''}
         <tr><td>${esc(sec.tiers[o.tier][0])}</td><td class="r num">${money(q.base)}/sq ft</td></tr>
-        ${q.bundle ? `<tr><td>Bundle discount</td><td class="r num">&minus;${money(q.bundle)}</td></tr>` : ''}${q.port ? `<tr><td>Portfolio discount</td><td class="r num">&minus;${money(q.port)}</td></tr>` : ''}
+        ${q.bundle ? `<tr><td>Bundle discount</td><td class="r num">&minus;${money(q.bundle)}</td></tr>` : ''}${q.port ? `<tr><td>Portfolio discount (${Math.round(q.portPct * 100)}%)</td><td class="r num">&minus;${money(q.port)}</td></tr>` : ''}
         <tr><td>Service</td><td class="r num">${money(q.service)}</td></tr>${q.fees ? `<tr><td>Dispatch fees</td><td class="r num">${money(q.fees)}</td></tr>` : ''}
         <tr class="t"><td>Total per visit</td><td class="r num">${money(q.total)}</td></tr></table>
         <p class="small muted">${esc(prop.label)} &middot; ${o.services.length} service${o.services.length === 1 ? '' : 's'} &middot; ${o.freq}. Tax is added at payment by jurisdiction.</p>
@@ -221,7 +266,7 @@
     let action = '';
     if (mode === 'board') action = x.status !== 'open' ? pill(STATUS[x.status]) : cleared() && role() === 'contractor' ? `<button class="btn primary sm" data-act="claim" data-id="${x.id}">Claim</button>` : `<button class="btn sm" disabled title="Complete vetting to claim">Claim</button>`;
     if (mode === 'mine') action = `<button class="btn sm primary" data-act="openJob" data-id="${x.id}">Open</button>`;
-    return `<div class="ticket ${ui.fresh === x.id ? 'new' : ''}"><div><div class="row"><b>${esc(s.short)}</b>${pill(tierName(x), 'info')}${x.immediate ? pill('Immediate', 'bad') : ''}${x.afterHours ? pill('After-hours', 'warn') : ''}</div>
+    return `<div class="ticket ${ui.fresh === x.id ? 'new' : ''}"><div><div class="row"><b>${esc(s.short)}</b>${pill(tierName(x), 'info')}${x.immediate ? pill('Immediate', 'bad') : ''}${x.sameDay ? pill('Same-day turnover', 'warn') : ''}${x.afterHours ? pill('After-hours', 'warn') : ''}</div>
       <div>${esc(x.address)}</div><div class="small muted">${sqft(x.area)} &middot; ${esc(x.window || 'Flexible')} &middot; posted ${ago(x.created)}</div>
       <div class="small muted">${x.services.map(esc).join(', ')}</div></div>
       <div style="text-align:right"><div class="small muted">Your payout</div><b class="num" style="font-size:18px">${money(pay.total)}</b><div class="small muted num">${pay.pct}% + ${money(pay.extra)}</div><div style="margin-top:8px">${action}</div></div></div>`;
@@ -322,6 +367,7 @@
     if (r === 'console' && ui.cTab === 'props' && ui.prop && ui.prop.measured && cfg.GOOGLE_MAPS_KEY) gmap.mount();
     ui.fresh = null;
     APN.track.after(S, ME, role());
+    calAuto();
   }
 
   /* ---------- property measurement ---------- */
@@ -410,6 +456,11 @@
     trace(d) { ui.prop.trace = d.k; render(); }, traceClear() { const k = ui.prop.trace || 'building'; if (k === 'building' && ui.prop.auto) return toast('The building outline is set automatically and cannot be changed'); const g = gmap.poly[k]; if (g) g.getPath().clear(); gmap.measure(); },
     saveProp() { const p = ui.prop; if (!(p.building > 0)) return toast('Building footprint must be above zero');
       S.props.push({ id: APN.uid('P'), label: p.label.trim() || p.address.split(',')[0], address: p.address.trim(), type: p.type, building: +p.building, land: +p.land || 0, source: p.source, verified: { building: !!p.auto, land: false } }); ui.prop = null; save(); toast(p.auto ? 'Property saved. Lot size is pending verification.' : 'Property saved. Measurements are pending verification.'); render(); },
+    calOpen(d) { const p = S.props.find(x => x.id === d.id); if (!p) return; p.cal = p.cal || { url: '', on: false, confirm: false, tier: 0, services: [], seen: {}, pending: [] }; ui.cal = p.id; ui.cTab = 'props'; render(); },
+    calClose() { ui.cal = null; render(); },
+    calSave() { const p = calProp(); if (!p) return; save(); if (!p.cal.url) { toast('Paste your calendar link first'); return; } calSync(p, true); },
+    calApprove(d) { const p = calProp(); if (!p) return; const e = p.cal.pending[+d.i]; if (!e) return; if (!isV(p, 'building')) return toast('This property is still awaiting measurement verification'); if (calOrder(p, e)) { p.cal.pending.splice(+d.i, 1); save(); toast('Cleaning ordered. Funds are held in escrow.'); render(); } },
+    calSkip(d) { const p = calProp(); if (!p) return; p.cal.pending.splice(+d.i, 1); save(); render(); },
     delProp(d) { S.props = S.props.filter(p => p.id !== d.id); S.cart = S.cart.filter(c => c.propId !== d.id); save(); render(); },
     orderFor(d) { ui.order.propId = d.id; ui.cTab = 'order'; render(); },
     oSector(d) { Object.assign(ui.order, { sector: d.k, services: [], immediate: false }); render(); }, oFreq(d) { ui.order.freq = d.k; render(); },
@@ -443,6 +494,13 @@
     else if (d.prop) { ui.prop[d.prop] = el.type === 'number' ? Math.max(0, +el.value || 0) : el.value; if (d.prop === 'building' || d.prop === 'land' || d.prop === 'type') render(); }
     else if (d.photo && el.files[0]) { const x = ticket(ui.job); if (!x) return; (ui.photoURL[x.id] = ui.photoURL[x.id] || {})[d.photo] = URL.createObjectURL(el.files[0]); x.photos[d.photo] = true; save(); render(); }
     else if (d.vet && el.files[0]) { S.contractor.vetting[d.vet] = 'submitted'; save(); toast('Document received, now in review'); render(); }
+  });
+  document.addEventListener('input', e => { const el = e.target, p = calProp(); if (p && el.dataset.cal === 'url') p.cal.url = el.value.trim(); });
+  document.addEventListener('change', e => {
+    const el = e.target, p = calProp(); if (!p) return;
+    if (el.dataset.cal === 'tier') p.cal.tier = +el.value; else if (el.dataset.cal === 'confirm') p.cal.confirm = el.value === '1'; else if (el.dataset.cal === 'on') p.cal.on = el.checked;
+    else if (el.dataset.calSvc) { const set = new Set(p.cal.services || []); el.checked ? set.add(el.dataset.calSvc) : set.delete(el.dataset.calSvc); p.cal.services = [...set]; } else return;
+    save(); render();
   });
   document.addEventListener('input', e => { const d = e.target.dataset; if (d.prop && e.target.type === 'text') ui.prop[d.prop] = e.target.value; });
   document.addEventListener('submit', e => {
