@@ -141,3 +141,7 @@ section.band{padding:52px 0}section.band.alt{background:var(--card);border-block
 .legal h3{margin-top:1.2em}.legal h3:first-child{margin-top:0}
 .flinks a{color:inherit;opacity:.85}
 .trackmap{height:340px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--soft)}
+.tabdesc{margin:-8px 0 16px;color:var(--muted);font-size:13px;max-width:78ch}
+textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit;resize:vertical}
+#tip{position:fixed;z-index:1000;display:none;max-width:280px;padding:8px 10px;border-radius:8px;background:#0b132b;color:#fff;font-size:12.5px;line-height:1.4;box-shadow:0 6px 20px rgba(0,0,0,.25);pointer-events:none}
+.hint::after{content:"i";display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;border:1px solid var(--muted);border-radius:50%;font:600 10px Inter,sans-serif;color:var(--muted);vertical-align:2px}

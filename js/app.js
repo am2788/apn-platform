@@ -15,7 +15,7 @@
   const ui = {
     cTab: 'overview', kTab: 'overview', promo: 0, promoOff: false, job: null, loginTab: 'in', loginRole: 'customer',
     order: { propId: null, sector: 'str', tier: 0, services: [], freq: 'One-time', immediate: false, afterHours: false },
-    prop: null, cal: null, photoURL: {}, fresh: null
+    prop: null, cal: null, bulk: null, bulkType: 'STR', photoURL: {}, fresh: null
   };
   const PUBLIC_PAGES = ['faq', 'contact', 'privacy', 'terms'];
   const ROUTES = ['home', 'login', 'console', 'contractor', 'vetting', 'ops', 'w2'].concat(PUBLIC_PAGES);
@@ -132,11 +132,11 @@
   function vConsole() {
     const tabs = [['overview', 'Overview'], ['props', 'Properties'], ['order', 'New order'], ['orders', 'Orders & receipts']];
     const body = { overview: cOverview, props: cProps, order: cOrder, orders: cOrders }[ui.cTab]();
-    return sky(`Welcome back, ${S.user.name}`, 'Customer dashboard') + `<div class="wrap dash"><div class="tabs">${tabs.map(([k, l]) => `<button class="${ui.cTab === k ? 'on' : ''}" data-act="cTab" data-k="${k}">${l}${k === 'order' && S.cart.length ? ` (${S.cart.length})` : ''}</button>`).join('')}</div>${body}</div>`;
+    return sky(`Welcome back, ${S.user.name}`, 'Customer dashboard') + `<div class="wrap dash"><div class="tabs">${tabs.map(([k, l]) => `<button class="${ui.cTab === k ? 'on' : ''}" data-act="cTab" data-k="${k}">${l}${k === 'order' && S.cart.length ? ` (${S.cart.length})` : ''}</button>`).join('')}</div><p class="tabdesc">${esc(APN.tabHelp.cTab[ui.cTab])}</p>${body}</div>`;
   }
   function cOverview() {
     const mine = myTickets(), open = mine.filter(x => !['released', 'refunded'].includes(x.status));
-    const held = open.reduce((a, x) => a + x.total, 0), off = APN.portfolioOff(S.props.length);
+    const held = open.reduce((a, x) => a + x.total, 0), pct = APN.portfolioPct(S.props.length);
     return `<div class="grid g4" style="margin-bottom:16px">
       <div class="card kpi"><b>${S.props.length}</b><span>Properties</span></div>
       <div class="card kpi"><b>${open.length}</b><span>Open orders</span></div>
@@ -145,8 +145,8 @@
     <div class="grid g2"><div class="card"><div class="row between"><h3>Recent orders</h3><button class="btn sm" data-act="cTab" data-k="order">New order</button></div>
       ${mine.length ? mine.slice(-5).reverse().map(x => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--line)"><div class="grow"><b>${esc(APN.sector(x.sector).short)}</b> &middot; ${esc(tierName(x))}<div class="small muted">${esc(x.address)}</div></div>${pill(STATUS[x.status])}${escrowPill(x)}</div>`).join('') : `<p class="muted">No orders yet. Start with a property and a quote.</p>`}</div>
     <div class="card"><h3>Account</h3><table class="sum">
-      <tr><td>Portfolio discount</td><td class="r num">${off ? '&minus;' + money(off) + '/sq ft' : 'None yet'}</td></tr>
-      <tr><td class="small muted" colspan="2">8 or more properties: ${money(0.02)} off per sq ft. 20 or more: ${money(0.07)} off.</td></tr>
+      <tr><td>Portfolio discount</td><td class="r num">${pct ? Math.round(pct * 100) + '% off' : 'None yet'}</td></tr>
+      <tr><td class="small muted" colspan="2">${APN.PORTFOLIO[1].min} or more properties: ${Math.round(APN.PORTFOLIO[1].pct * 100)}% off the rate. ${APN.PORTFOLIO[0].min} or more: ${Math.round(APN.PORTFOLIO[0].pct * 100)}% off. There is no limit on properties.</td></tr>
       <tr><td>Bundle discount</td><td class="r">2+ sectors on one property</td></tr>
       <tr><td>Same technician on recurring work</td><td class="r">${pill('Active', 'ok')}</td></tr></table></div></div>`;
   }
@@ -201,6 +201,14 @@
   let lastAuto = 0;
   function calAuto() { if (role() !== 'customer' || Date.now() - lastAuto < 15 * 60e3) return; lastAuto = Date.now(); S.props.filter(p => p.cal && p.cal.on && p.cal.url).forEach(p => calSync(p, false)); }
 
+  function bulkCard() {
+    if (ui.bulk === null) return '';
+    return `<div class="card" style="margin-bottom:16px"><div class="row between"><h3 style="margin:0">Add many properties</h3><button class="btn sm ghost" data-act="bulkClose">Close</button></div>
+      <p class="small muted">Paste one full address per line. There is no limit on how many properties you can add. Our team verifies each measurement before ordering opens for it. Reaching 5 properties earns ${Math.round(APN.PORTFOLIO[1].pct * 100)}% off and 10 earns ${Math.round(APN.PORTFOLIO[0].pct * 100)}% off.</p>
+      <div class="field"><label for="b-type">Property type</label><select id="b-type" data-bulk-type>${['Residential', 'STR', 'Commercial'].map(x => `<option ${ui.bulkType === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
+      <div class="field"><label for="b-text">Addresses</label><textarea id="b-text" data-bulk rows="8" placeholder="123 Main St, Louisville, KY 40202&#10;456 Oak Ave, Lexington, KY 40507">${esc(ui.bulk)}</textarea></div>
+      <button class="btn primary" data-act="bulkAdd">Add these properties</button></div>`;
+  }
   function cProps() {
     const p = ui.prop;
     const form = p ? `<div class="card" style="margin-bottom:16px"><h3>Add a property</h3><div class="grid g2">
@@ -213,7 +221,7 @@
         <p class="small muted">${p.source === 'satellite' ? (p.auto ? 'Building footprint measured automatically and locked. Click the corners of the lot; our team verifies the lot before grounds work can be ordered.' : 'No automatic outline for this address. Trace the building and the lot; our team verifies both before you can order.') : 'Estimated without imagery. Our team verifies these figures before you can order.'}</p>
         <div class="row"><button class="btn primary" data-act="saveProp">Save property</button><button class="btn ghost" data-act="cancelProp">Cancel</button></div>` : ''}</div>
       <div>${p.measured ? (cfg.GOOGLE_MAPS_KEY ? `<div id="gmap"></div><div class="seg" style="margin-top:8px"><button data-act="trace" data-k="building" class="${p.trace !== 'land' ? 'on' : ''}" ${p.auto ? 'disabled' : ''}>${p.auto ? 'Building locked' : 'Trace building'}</button><button data-act="trace" data-k="land" class="${p.trace === 'land' ? 'on' : ''}">Trace lot</button><button data-act="traceClear">Clear outline</button></div>` : parcelSVG(p)) : `<div class="note">Enter the address and measure. We read the building footprint and the land separately: interior work is priced on the building, grounds work on the land.</div>`}</div></div></div>` : '';
-    return `${form}${calCard()}<div class="card"><div class="row between"><h3>Your properties</h3>${p ? '' : `<button class="btn primary sm" data-act="newProp">Add property</button>`}</div>
+    return `${form}${bulkCard()}${calCard()}<div class="card"><div class="row between"><h3>Your properties</h3>${p ? '' : `<span class="row"><button class="btn sm" data-act="bulkOpen">Add many at once</button><button class="btn primary sm" data-act="newProp">Add property</button></span>`}</div>
       <div class="scroll-x"><table><tr><th>Property</th><th>Type</th><th class="r">Building</th><th class="r">Land</th><th>Verification</th><th></th></tr>
       ${S.props.map(x => `<tr><td><b>${esc(x.label)}</b><div class="small muted">${esc(x.address)}</div></td><td>${esc(x.type)}</td><td class="r num">${sqft(x.building)}</td><td class="r num">${sqft(x.land)}</td><td>${vp(x, 'building', 'Building')} ${vp(x, 'land', 'Land')}</td><td class="r"><button class="btn sm" data-act="orderFor" data-id="${x.id}">Order</button> <button class="btn sm" data-act="calOpen" data-id="${x.id}">Auto-clean${x.cal && x.cal.on ? ' &#10003;' : ''}</button> <button class="btn sm danger" data-act="delProp" data-id="${x.id}">Remove</button></td></tr>`).join('') || `<tr><td colspan="6" class="muted">No properties yet.</td></tr>`}</table></div></div>`;
   }
@@ -275,7 +283,7 @@
     if (!cleared()) return sky('Contractor dashboard', '1099 field partner') + `<div class="wrap dash"><div class="card lock"><h2>Access denied: compliance threshold unmet</h2><p class="muted">Dispatch opens once your ISSA CIMS exam, liability bond and background check are verified.</p><a class="btn primary" href="#vetting">Go to vetting</a></div></div>`;
     const tabs = [['overview', 'Overview'], ['queue', 'Job queue'], ['mine', 'My jobs'], ['earn', 'Earnings']];
     const body = { overview: kOverview, queue: kQueue, mine: kMine, earn: kEarn }[ui.kTab]();
-    return sky(`Welcome back, ${S.user.name}`, '1099 contractor dashboard') + `<div class="wrap dash"><div class="tabs">${tabs.map(([k, l]) => `<button class="${ui.kTab === k ? 'on' : ''}" data-act="kTab" data-k="${k}">${l}</button>`).join('')}</div>${body}</div>`;
+    return sky(`Welcome back, ${S.user.name}`, '1099 contractor dashboard') + `<div class="wrap dash"><div class="tabs">${tabs.map(([k, l]) => `<button class="${ui.kTab === k ? 'on' : ''}" data-act="kTab" data-k="${k}">${l}</button>`).join('')}</div><p class="tabdesc">${esc(APN.tabHelp.kTab[ui.kTab])}</p>${body}</div>`;
   }
   const mineK = () => S.tickets.filter(x => x.claimedBy === ME);
   function kOverview() {
@@ -368,6 +376,7 @@
     ui.fresh = null;
     APN.track.after(S, ME, role());
     calAuto();
+    APN.tips.apply();
   }
 
   /* ---------- property measurement ---------- */
@@ -456,6 +465,14 @@
     trace(d) { ui.prop.trace = d.k; render(); }, traceClear() { const k = ui.prop.trace || 'building'; if (k === 'building' && ui.prop.auto) return toast('The building outline is set automatically and cannot be changed'); const g = gmap.poly[k]; if (g) g.getPath().clear(); gmap.measure(); },
     saveProp() { const p = ui.prop; if (!(p.building > 0)) return toast('Building footprint must be above zero');
       S.props.push({ id: APN.uid('P'), label: p.label.trim() || p.address.split(',')[0], address: p.address.trim(), type: p.type, building: +p.building, land: +p.land || 0, source: p.source, verified: { building: !!p.auto, land: false } }); ui.prop = null; save(); toast(p.auto ? 'Property saved. Lot size is pending verification.' : 'Property saved. Measurements are pending verification.'); render(); },
+    bulkOpen() { ui.bulk = ui.bulk === null ? '' : ui.bulk; ui.cTab = 'props'; render(); }, bulkClose() { ui.bulk = null; render(); },
+    bulkAdd() {
+      const have = new Set(S.props.map(x => x.address.toLowerCase().trim()));
+      const lines = [...new Set(String(ui.bulk || '').split(/\r?\n/).map(x => x.trim()).filter(x => x.length >= 6))].filter(x => !have.has(x.toLowerCase())).slice(0, 500);
+      if (!lines.length) return toast('Paste at least one new address, one per line');
+      lines.forEach(a => { const p = { address: a, type: ui.bulkType }; estimate(p); S.props.push({ id: APN.uid('P'), label: a.split(',')[0], address: a, type: p.type, building: p.building, land: p.land, source: 'estimate', verified: { building: false, land: false } }); });
+      ui.bulk = null; save(); toast(`${lines.length} propert${lines.length === 1 ? 'y' : 'ies'} added. Measurements are pending verification.`); render();
+    },
     calOpen(d) { const p = S.props.find(x => x.id === d.id); if (!p) return; p.cal = p.cal || { url: '', on: false, confirm: false, tier: 0, services: [], seen: {}, pending: [] }; ui.cal = p.id; ui.cTab = 'props'; render(); },
     calClose() { ui.cal = null; render(); },
     calSave() { const p = calProp(); if (!p) return; save(); if (!p.cal.url) { toast('Paste your calendar link first'); return; } calSync(p, true); },
@@ -495,6 +512,8 @@
     else if (d.photo && el.files[0]) { const x = ticket(ui.job); if (!x) return; (ui.photoURL[x.id] = ui.photoURL[x.id] || {})[d.photo] = URL.createObjectURL(el.files[0]); x.photos[d.photo] = true; save(); render(); }
     else if (d.vet && el.files[0]) { S.contractor.vetting[d.vet] = 'submitted'; save(); toast('Document received, now in review'); render(); }
   });
+  document.addEventListener('input', e => { if (e.target.hasAttribute('data-bulk')) ui.bulk = e.target.value; });
+  document.addEventListener('change', e => { if (e.target.hasAttribute('data-bulk-type')) ui.bulkType = e.target.value; });
   document.addEventListener('input', e => { const el = e.target, p = calProp(); if (p && el.dataset.cal === 'url') p.cal.url = el.value.trim(); });
   document.addEventListener('change', e => {
     const el = e.target, p = calProp(); if (!p) return;
