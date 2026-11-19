@@ -391,6 +391,7 @@
     if (r === 'console' && ui.cTab === 'props' && ui.prop && ui.prop.measured && cfg.GOOGLE_MAPS_KEY) gmap.mount();
     ui.fresh = null;
     APN.track.after(S, ME, role());
+    APN.presence.update(S.user, route());
     calAuto();
     APN.tips.apply();
   }
@@ -533,7 +534,7 @@
     else if (d.flag) { ui.order[d.flag] = el.checked; render(); }
     else if (d.prop) { ui.prop[d.prop] = el.type === 'number' ? Math.max(0, +el.value || 0) : el.value; if (d.prop === 'building' || d.prop === 'land' || d.prop === 'type') render(); }
     else if (d.photo && el.files[0]) { const x = ticket(ui.job); if (!x) return; (ui.photoURL[x.id] = ui.photoURL[x.id] || {})[d.photo] = URL.createObjectURL(el.files[0]); x.photos[d.photo] = true; save(); render(); }
-    else if (d.vet && el.files[0]) { S.contractor.vetting[d.vet] = 'submitted'; save(); toast('Document received, now in review'); render(); }
+    else if (d.vet && el.files[0]) { S.contractor.vetting[d.vet] = 'submitted'; save(); APN.presence.apply({ role: 'contractor', name: S.contractor.name, email: S.user && S.user.email, vetting: S.contractor.vetting }); toast('Document received, now in review'); render(); }
   });
   document.addEventListener('input', e => { if (e.target.hasAttribute('data-bulk')) ui.bulk = e.target.value; });
   document.addEventListener('change', e => { if (e.target.hasAttribute('data-bulk-type')) ui.bulkType = e.target.value; });
@@ -553,7 +554,7 @@
       if (!v.pw || v.pw.length < 8) return err('Password must be at least 8 characters.');
       if (ui.loginTab === 'up') { if (!(v.name || '').trim()) return err('Enter your name.'); if (!/^\+[1-9]\d{6,14}$/.test((v.phone || '').replace(/[\s()-]/g, ''))) return err('Enter the phone number in international format, for example +16145550123.'); if (v.pw !== v.pw2) return err('The two passwords do not match.'); }
       const name = (v.name || '').trim() || v.email.split('@')[0];
-      S.user = { name, email: v.email, role: ui.loginRole }; if (ui.loginRole === 'contractor') S.contractor.name = name; save();
+      S.user = { name, email: v.email, role: ui.loginRole }; if (ui.loginRole === 'contractor') S.contractor.name = name; save(); APN.presence.apply({ role: ui.loginRole, name, email: v.email, vetting: ui.loginRole === 'contractor' ? S.contractor.vetting : undefined });
       go({ customer: 'console', contractor: cleared() ? 'contractor' : 'vetting', ops: 'ops' }[ui.loginRole]);
     }
     if (f.dataset.form === 'verify') { const x = S.props.find(q => q.id === f.dataset.id); if (x) { x.building = Math.max(1, +v.building || x.building); x.land = Math.max(0, +v.land || 0); x.verified = { building: true, land: true }; save(); toast('Measurements verified'); render(); } }

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>APN Admin</title>
+<link rel="icon" href="assets/img/logo-180.png">
+<link rel="stylesheet" href="css/app.css">
+<style>
+body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;margin:0}
+.ad{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+.ad h1{font-family:Manrope,Inter,sans-serif;font-size:22px;margin:0}
+.adbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:14px 0}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:var(--shadow)}
+.kpi b{display:block;font-size:26px;font-family:Manrope,sans-serif}.kpi span{font-size:12px;color:var(--muted)}
+.tbl{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.tbl th,.tbl td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:top}
+.tbl th{background:var(--soft);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:var(--muted)}
+.dot.ok{background:var(--ok)}.dot.down{background:var(--bad)}.dot.off{background:var(--muted);opacity:.5}
+.gate{max-width:380px;margin:12vh auto;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:24px;box-shadow:var(--shadow)}
+.gate input{width:100%;box-sizing:border-box;margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.banner{background:var(--soft);border-left:4px solid var(--warn);padding:10px 14px;border-radius:8px;margin:10px 0;font-size:13.5px}
+.banner.bad{border-color:var(--bad)}
+.muted{color:var(--muted)}.small{font-size:12.5px}
+.tabs2{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 14px}
+.tabs2 button,.btn2{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer;font:inherit;font-size:13.5px}
+.tabs2 button.on,.btn2.primary{background:var(--blue);color:var(--blue-ink);border-color:var(--blue)}
+.scroll{overflow-x:auto}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="js/admin.js"></script>
+</body>
+</html>

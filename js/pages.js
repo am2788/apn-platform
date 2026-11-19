@@ -46,6 +46,7 @@
     privacy: () => head('Legal', 'Privacy policy', 'Last updated November 2026.')
       + `<div class="card legal"><h3>What we collect</h3><p class="small">Account details you give us (name, email, mobile number), the property addresses you enter, measurement data we look up for those addresses, order and payment records, and the photos contractors upload to verify a job. Contractors also provide vetting documents.</p>
         <h3>How we use it</h3><p class="small">To price and dispatch work, hold and release escrow, verify completed jobs, send dispatch and service messages, prevent fraud and meet legal obligations. We do not sell your personal information.</p>
+        <h3>Usage</h3><p class="small">While you have the site open we record a random session ID, the page you are on and, if you are signed in, your name and role, so we can see that the service is running and respond quickly. It stops when you close the page.</p>
         <h3>Who sees it</h3><p class="small">Contractors see the job address, measured areas and scope for tickets they claim. Service providers that run our hosting, maps, messaging and payments process data for us under their own terms. We may disclose information when the law requires it.</p>
         <h3>Your choices</h3><p class="small">You can ask to access, correct or delete your information by writing to ${mail}. We keep records as long as needed to operate the service and meet legal requirements.</p>
         <h3>Contact</h3><p class="small" style="margin:0">${mail}</p></div></div></section>`,
