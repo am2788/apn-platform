@@ -56,6 +56,33 @@
         ['Hard floor care', 'Scrub, buff and polish.'],
         ['Pet waste removal', 'Scheduled yard pickup and sanitizing.'],
         ['Move-in / move-out clean', 'Deposit-ready clean with photo record.']] },
+    { id: 'wash', name: 'Power Washing', short: 'Power wash', img: 'wash.jpg', basis: 'building',
+      blurb: 'Exterior washing for homes, storefronts and flatwork, priced on the measured building.',
+      tiers: [
+        ['Surface Refresh', 'Walkways, entries and light buildup.'],
+        ['Deep Exterior Wash', 'Siding, drives and patios washed in full.'],
+        ['Full Restoration Wash', 'Heavy staining, mildew and oxidation, with spot treatment.']],
+      services: [
+        ['Driveway and walkway washing', 'Concrete and paver flatwork.'],
+        ['Siding and house wash', 'Low-pressure wash of exterior walls.'],
+        ['Deck and patio cleaning', 'Wood, composite and stone surfaces.'],
+        ['Fence washing', 'Wood and vinyl fencing.'],
+        ['Garage and dumpster pad washing', 'Degrease and rinse with runoff controls.'],
+        ['Storefront and sidewalk wash', 'Commercial frontage and entries.'],
+        ['Stain and graffiti removal', 'Targeted treatment of oil, rust and paint.']] },
+    { id: 'gutter', name: 'Gutter Cleaning', short: 'Gutters', img: 'res2.jpg', basis: 'building',
+      blurb: 'Gutters and downspouts cleared and flushed, priced on the measured building.',
+      tiers: [
+        ['Gutter Clear', 'Debris removal from gutters and drop outlets.'],
+        ['Clear and Flush', 'Debris removal plus a full downspout flush.'],
+        ['Gutter Restoration', 'Deep clean, guard cleaning, and minor reseal or reattach.']],
+      services: [
+        ['Gutter debris removal', 'Hand-clear and bag all debris.'],
+        ['Downspout flush and unclogging', 'Water test to confirm clear flow.'],
+        ['Gutter guard cleaning', 'Clean and refit screens and guards.'],
+        ['Roof-edge debris sweep', 'Clear debris from the first few feet of roof.'],
+        ['Minor reseal and reattach', 'Re-secure loose hangers and seal small leaks.'],
+        ['Exterior gutter wash', 'Remove streaks and oxidation from the face.']] },
     { id: 'com', name: 'Commercial Sanitation', short: 'Commercial', img: 'com.jpg', basis: 'building',
       blurb: 'Janitorial programs for offices, retail and multi-tenant buildings.',
       tiers: [
@@ -99,10 +126,16 @@
   APN.PHOTO_POINTS = ['Pre-site arrival', 'Structural / entry', 'Work area', 'Detail close-up', 'Post-site & lock-up'];
   APN.VETTING = [
     ['identity', 'Identity & W-9', 'Government ID and taxpayer form for 1099 payments.'],
-    ['issa', 'ISSA CIMS exam', 'Verified exam result from ISSA.'],
-    ['bond', 'Liability bond certificate', 'Active certificate naming your business.'],
-    ['background', 'Background check', 'Consent and clear result from our screening provider.']];
-  APN.GATE = ['issa', 'bond', 'background'];
+    ['issa', 'ISSA CIMS certification', 'Verified ISSA CIMS certification in good standing.'],
+    ['insurance', 'General liability insurance', 'Active certificate of insurance naming your business.'],
+    ['bond', 'Liability bond certificate', 'Active bond certificate naming your business.'],
+    ['background', 'Background check', 'Consent and clear result from our screening provider.'],
+    ['landscape', 'Landscaping certification', 'Your landscape professional credential, such as a certified landscape technician certification or a state landscape contractor license where your state requires one.'],
+    ['applicator', 'Pesticide and fertilizer applicator license', 'Your state commercial applicator license. Needed for any chemical or fertilizer application, including pest work.']];
+  /* Everyone must clear the base gate. Some sectors also need trade credentials. */
+  APN.GATE = ['identity', 'issa', 'insurance', 'bond', 'background'];
+  APN.TRADE_GATE = { land: ['landscape', 'applicator'], pest: ['applicator'] };
+  APN.vetName = k => (APN.VETTING.find(v => v[0] === k) || [k, k])[1];
 
   /* ---------- pricing ---------- */
   APN.portfolioPct = n => (APN.PORTFOLIO.find(p => n >= p.min) || { pct: 0 }).pct;
@@ -164,7 +197,7 @@
         T({ sector: 'pest', tier: 1, address: '301 Mill Run, Hilliard, OH', area: 2100, service: 945, total: 1295, immediate: true, window: 'Immediate', created: now - 0.1 * h, services: ['Wildlife exclusion'] }),
         T({ sector: 'com', tier: 0, address: '2200 Harper Rd, Dublin, OH', area: 12400, service: 1240, total: 1340, afterHours: true, window: 'Tonight 9:00 PM', created: now - 3 * h, services: ['Office and common-area janitorial', 'Restroom sanitation'], propId: 'P-2', mine: true }),
         T({ sector: 'res', tier: 1, address: '56 Birch Ct, Gahanna, OH', area: 2300, service: 1035, total: 1035, window: 'Yesterday', created: now - 26 * h, status: 'review', claimedBy: 'Field Partner 204', services: ['Whole-home clean', 'Carpet steam extraction'], photos: Object.fromEntries(Array.from({ length: 10 }, (_, i) => [i, true])) })],
-      contractor: { name: 'Field Partner', reviews: 31, vetting: { identity: 'verified', issa: 'missing', bond: 'missing', background: 'submitted' }, paid: 0 },
+      contractor: { name: 'Field Partner', reviews: 31, vetting: { identity: 'verified', issa: 'missing', insurance: 'missing', bond: 'missing', background: 'submitted', landscape: 'missing', applicator: 'missing' }, paid: 0 },
       promos: [
         { id: 'N-1', tag: 'Promotion', text: 'Bundle two sectors on one property and take up to $0.20 off per sq ft.' },
         { id: 'N-2', tag: 'News', text: 'Hospital & Clinical Environments is in preparation. W-2 team hiring opens first.' },

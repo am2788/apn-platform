@@ -22,7 +22,7 @@
       ['What is the Hospital sector?', () => `Hospital and clinical environments are coming soon. They will be staffed by our own W-2 teams on fixed shifts rather than independent contractors.`]
     ]],
     ['Contractors', [
-      ['How do I get started?', () => `Create a contractor account and complete vetting once: an ISSA CIMS exam, a liability bond and a background check. After all three are verified you can claim live dispatch tickets in your area.`],
+      ['How do I get started?', () => `Create a contractor account and complete vetting once. Every field partner needs a verified ISSA CIMS certification, general liability insurance, a liability bond, a background check and an identity and W-9 form. Landscaping jobs also need a landscaping certification and a state pesticide and fertilizer applicator license, and pest jobs need the applicator license. You can claim every sector you are fully verified for.`],
       ['How am I paid?', () => `You start at ${P.base}% of the service total and rise ${P.step}% for every ${P.every} five-star reviews, up to ${P.cap}%. After the cap there is a ${money(P.bonus)} bonus for each further ${P.every} five-star reviews. Every job also pays a ${money(F.transit)} transit stipend.`],
       ['Will I know what I am walking into?', () => `Yes. The building and land areas on your ticket are the same measured figures the customer was quoted, so crew size and pay are based on real numbers. If a property clearly does not match its listing, flag it from the job and we will review it.`],
       ['When does my money arrive?', () => `Escrow releases once your ten photos are submitted and reviewed. A complete photo record is the fastest way to get paid.`],

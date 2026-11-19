@@ -22,7 +22,12 @@
   const route = () => { const h = location.hash.replace('#', ''); return ROUTES.includes(h) ? h : 'home'; };
   const go = r => { if (route() === r) render(); else location.hash = r; };
   const role = () => S.user && S.user.role;
+  /* older saved sessions predate some vetting items */
+  APN.VETTING.forEach(v => { if (!S.contractor.vetting[v[0]]) S.contractor.vetting[v[0]] = 'missing'; });
   const cleared = () => APN.GATE.every(k => S.contractor.vetting[k] === 'verified');
+  const tradeMissing = sector => (APN.TRADE_GATE[sector] || []).filter(k => S.contractor.vetting[k] !== 'verified');
+  const canClaim = x => cleared() && tradeMissing(x.sector).length === 0;
+  const claimBlock = x => !cleared() ? 'Complete vetting to claim' : 'Needs: ' + tradeMissing(x.sector).map(APN.vetName).join(', ');
   const ME = 'me';
   const ACTIVE_JOB = ['claimed', 'onsite'];
 
@@ -88,7 +93,7 @@
         <div class="meta atmo-chips row" style="margin-top:22px">${chips()}</div></div>
         <div><video controls preload="metadata" playsinline poster="${img('com.jpg')}" src="assets/video/vision.mp4" aria-label="Our goals and vision, 33 second film"></video>
         <div class="cap">Our goals and vision &middot; 33 seconds, captions on screen, no sound</div></div></div></section>
-    <section class="band"><div class="wrap"><div class="eyebrow">${t('services')}</div><h2>Five sectors live. One price structure.</h2>
+    <section class="band"><div class="wrap"><div class="eyebrow">${t('services')}</div><h2>${['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'][APN.SECTORS.filter(x => !x.soon).length]} sectors live. One price structure.</h2>
       <p class="muted" style="max-width:70ch">Every sector has its own tier names and scope, and every sector uses the same three rates: ${APN.RATES.map(r => money(r)).join(', ')} per square foot.</p>
       <div class="grid g3">${APN.SECTORS.map(sectorCard).join('')}</div></div></section>
     <section class="band alt"><div class="wrap"><div class="eyebrow">How it works</div><h2>From address to released payment</h2>
@@ -103,7 +108,7 @@
         <p>Our goal is a single network where an owner can price any property in a minute, where the same trusted technician returns for recurring work, and where no one is paid on a promise or left unpaid for finished work.</p>
         <p class="muted">Field partners start at ${APN.PAYOUT.base}% of the service total and earn up to ${APN.PAYOUT.cap}% through five-star reviews, with a ${money(APN.FEES.transit)} transit stipend on every job.</p></div>
       <div class="card"><h3>For contractors</h3><p class="small muted">Independent 1099 partners complete vetting once, then claim live dispatch tickets in their area.</p>
-        <table><tr><td>Vetting</td><td>ISSA CIMS exam, liability bond, background check</td></tr><tr><td>Split</td><td>${APN.PAYOUT.base}% rising ${APN.PAYOUT.step}% per ${APN.PAYOUT.every} five-star reviews, capped at ${APN.PAYOUT.cap}%</td></tr><tr><td>After the cap</td><td>${money(APN.PAYOUT.bonus)} bonus per further ${APN.PAYOUT.every} five-star reviews</td></tr><tr><td>After-hours</td><td>100% of the ${money(APN.FEES.afterHours)} fee</td></tr></table>
+        <table><tr><td>Vetting</td><td>ISSA CIMS certification, liability insurance and bond, background check, W-9. Landscaping and pest work also need trade licenses.</td></tr><tr><td>Split</td><td>${APN.PAYOUT.base}% rising ${APN.PAYOUT.step}% per ${APN.PAYOUT.every} five-star reviews, capped at ${APN.PAYOUT.cap}%</td></tr><tr><td>After the cap</td><td>${money(APN.PAYOUT.bonus)} bonus per further ${APN.PAYOUT.every} five-star reviews</td></tr><tr><td>After-hours</td><td>100% of the ${money(APN.FEES.afterHours)} fee</td></tr></table>
         <p style="margin:14px 0 0"><a class="btn" href="#login" data-act="joinContractor">${t('join')}</a></p></div></div></section>`;
   }
 
@@ -272,7 +277,7 @@
   function ticketCard(x, mode) {
     const pay = APN.payout(x, S.contractor.reviews), s = APN.sector(x.sector);
     let action = '';
-    if (mode === 'board') action = x.status !== 'open' ? pill(STATUS[x.status]) : cleared() && role() === 'contractor' ? `<button class="btn primary sm" data-act="claim" data-id="${x.id}">Claim</button>` : `<button class="btn sm" disabled title="Complete vetting to claim">Claim</button>`;
+    if (mode === 'board') action = x.status !== 'open' ? pill(STATUS[x.status]) : canClaim(x) && role() === 'contractor' ? `<button class="btn primary sm" data-act="claim" data-id="${x.id}">Claim</button>` : `<button class="btn sm" disabled title="${esc(claimBlock(x))}">Claim</button>${cleared() && tradeMissing(x.sector).length ? `<div class="small muted" style="margin-top:4px">${esc(claimBlock(x))}</div>` : ''}`;
     if (mode === 'mine') action = `<button class="btn sm primary" data-act="openJob" data-id="${x.id}">Open</button>`;
     return `<div class="ticket ${ui.fresh === x.id ? 'new' : ''}"><div><div class="row"><b>${esc(s.short)}</b>${pill(tierName(x), 'info')}${x.immediate ? pill('Immediate', 'bad') : ''}${x.sameDay ? pill('Same-day turnover', 'warn') : ''}${x.afterHours ? pill('After-hours', 'warn') : ''}</div>
       <div>${esc(x.address)}</div><div class="small muted">${sqft(x.area)} &middot; ${esc(x.window || 'Flexible')} &middot; posted ${ago(x.created)}</div>
@@ -331,12 +336,19 @@
 
   /* ---------- vetting portal + live dispatch board ---------- */
   const VST = { missing: ['Not submitted', ''], submitted: ['In review', 'warn'], verified: ['Verified', 'ok'], rejected: ['Rejected', 'bad'] };
+  const tradeFor = k => Object.keys(APN.TRADE_GATE).filter(sec => APN.TRADE_GATE[sec].includes(k)).map(sec => APN.sector(sec).name);
+  function vetRows(list, isC) {
+    const c = S.contractor;
+    return list.map(([k, n, d]) => { const st = c.vetting[k]; return `<div style="padding:12px 0;border-top:1px solid var(--line)"><div class="row between"><b>${n}</b>${pill(VST[st][0], VST[st][1])}</div><div class="small muted">${d}${APN.GATE.includes(k) ? ' Required to claim any job.' : tradeFor(k).length ? ' Required for ' + tradeFor(k).join(' and ') + ' jobs.' : ''}</div>
+      ${isC && (st === 'missing' || st === 'rejected') ? `<label class="btn sm" style="margin-top:8px;position:relative;overflow:hidden">Upload document<input type="file" data-vet="${k}" style="position:absolute;inset:0;opacity:0;cursor:pointer" aria-label="Upload ${n}"></label>` : ''}</div>`; }).join('');
+  }
   function vVetting() {
     const c = S.contractor, isC = role() === 'contractor', open = S.tickets.filter(x => x.status === 'open');
     return sky('Vetting & live dispatch', cleared() ? 'Cleared for dispatch' : 'Complete vetting to claim tickets') + `<div class="wrap dash"><div class="grid" style="grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);align-items:start" id="vet-grid">
       <div class="card"><div class="row between"><h3>Vetting checklist</h3>${cleared() ? pill('Cleared', 'ok') : pill('Not cleared', 'warn')}</div>
-        ${APN.VETTING.map(([k, n, d]) => { const st = c.vetting[k]; return `<div style="padding:12px 0;border-top:1px solid var(--line)"><div class="row between"><b>${n}</b>${pill(VST[st][0], VST[st][1])}</div><div class="small muted">${d}${APN.GATE.includes(k) ? ' Required to claim.' : ''}</div>
-          ${isC && (st === 'missing' || st === 'rejected') ? `<label class="btn sm" style="margin-top:8px;position:relative;overflow:hidden">Upload document<input type="file" data-vet="${k}" style="position:absolute;inset:0;opacity:0;cursor:pointer" aria-label="Upload ${n}"></label>` : ''}</div>`; }).join('')}
+        ${vetRows(APN.VETTING.filter(v => APN.GATE.includes(v[0])), isC)}
+        <h4 style="margin:18px 0 0">Trade credentials</h4><p class="small muted" style="margin:4px 0 0">Needed only for the sectors named below. You can still claim every other sector without them.</p>
+        ${vetRows(APN.VETTING.filter(v => !APN.GATE.includes(v[0])), isC)}
         ${cfg.DEMO_MODE ? `<p class="note" style="margin:12px 0 0">Demo: uploads are marked "In review" and stay on this device. Sign in as Operations to verify them.</p>` : ''}</div>
       <div><div class="row between" style="margin-bottom:10px"><h3 style="margin:0">Active dispatch tickets (${open.length})</h3><span class="live"><i></i>Live</span></div>
         <div class="grid">${open.slice().reverse().map(x => ticketCard(x, 'board')).join('') || '<p class="muted">No open tickets right now.</p>'}</div></div></div></div>`;
@@ -488,7 +500,7 @@
         S.tickets.push({ id: APN.uid('DT'), sector: c.sector, tier: c.tier, services: c.services, freq: c.freq, address: p.address, propId: p.id, area: q.area, service: q.service, total: q.total, immediate: c.immediate, afterHours: c.afterHours, window: c.immediate ? 'Immediate' : c.afterHours ? 'After hours' : 'Next available', status: 'open', escrow: 'held', photos: {}, created: Date.now(), mine: true }); }
       S.cart = []; save(); ui.cTab = 'orders'; toast('Order placed. Funds are held in escrow.'); render();
     },
-    claim(d) { const x = ticket(d.id); if (!x || x.status !== 'open' || !cleared()) return; Object.assign(x, { status: 'claimed', escrow: 'transit', claimedBy: ME }); save(); ui.kTab = 'mine'; ui.job = x.id; toast('Ticket claimed'); go('contractor'); },
+    claim(d) { const x = ticket(d.id); if (!x || x.status !== 'open' || !canClaim(x)) return; Object.assign(x, { status: 'claimed', escrow: 'transit', claimedBy: ME }); save(); ui.kTab = 'mine'; ui.job = x.id; toast('Ticket claimed'); go('contractor'); },
     openJob(d) { ui.job = d.id; render(); }, closeJob() { ui.job = null; render(); },
     enroute(d) { const x = ticket(d.id); if (!x || !ACTIVE_JOB.includes(x.status)) return; Object.assign(x, { enroute: true, enrouteAt: Date.now(), tkey: x.tkey || APN.track.tkey() }); save(); window.open(APN.directionsUrl(x.address), '_blank', 'noopener'); render(); },
     stopShare(d) { const x = ticket(d.id); if (!x) return; x.enroute = false; save(); APN.track.stop(x); toast('Location sharing stopped'); render(); },
