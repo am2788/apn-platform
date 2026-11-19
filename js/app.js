@@ -115,6 +115,8 @@
   }
 
   /* ---------- sign in ---------- */
+  /* The preview shortcuts are for the owner only: they appear when the site is opened with ?preview=1 (remembered on this browser). */
+  function showPreview() { try { if (/[?&]preview=1\b/.test(location.search)) localStorage.setItem('apn.preview', '1'); return localStorage.getItem('apn.preview') === '1'; } catch (e) { return false; } }
   function vLogin() {
     const up = ui.loginTab === 'up';
     const rb = (k, l) => `<button type="button" class="${ui.loginRole === k ? 'on' : ''}" data-act="loginRole" data-k="${k}">${l}</button>`;
@@ -130,7 +132,7 @@
         <div id="login-err" class="small" style="color:var(--bad);min-height:20px" role="alert"></div>
         <button class="btn primary" style="width:100%">${up ? 'Create account' : 'Sign in'}</button>
       </form>
-      ${cfg.DEMO_MODE ? `<div class="note" style="margin:16px 0 0"><b>Preview without signing up</b><div class="small muted" style="margin:2px 0 8px">Opens each dashboard with sample data. Demo mode only.</div><div class="row"><button type="button" class="btn sm primary" data-act="previewAs" data-k="customer">Customer dashboard</button><button type="button" class="btn sm primary" data-act="previewAs" data-k="contractor">Contractor dashboard</button><button type="button" class="btn sm" data-act="previewAs" data-k="ops">Operations</button></div></div>` : ''}
+      ${cfg.DEMO_MODE && showPreview() ? `<div class="note" style="margin:16px 0 0"><b>Owner preview</b><div class="small muted" style="margin:2px 0 8px">Opens each dashboard with sample data, skipping vetting. Visible only through the private preview link.</div><div class="row"><button type="button" class="btn sm primary" data-act="previewAs" data-k="customer">Customer dashboard</button><button type="button" class="btn sm primary" data-act="previewAs" data-k="contractor">Contractor dashboard</button><button type="button" class="btn sm" data-act="previewAs" data-k="ops">Operations</button></div></div>` : ''}
       ${cfg.DEMO_MODE ? `<p class="note" style="margin:16px 0 0">Demo mode: any email and password work, and the account type you pick decides which dashboard opens. In production the role comes from the server and Operations is not selectable here.</p>` : ''}
     </div></div>`;
   }
@@ -468,7 +470,7 @@
       APN.atmo.setOverride(k === 'auto' ? null : ['rain', 'snow'].includes(k) ? { phase: o.phase, cond: o.cond === k ? 'clear' : k } : { phase: k, cond: o.cond }); renderFoot(); },
     startQuote() { ui.cTab = S.props.length ? 'order' : 'props'; }, joinContractor() { ui.loginRole = 'contractor'; ui.loginTab = 'up'; },
     previewAs(d) {
-      if (!cfg.DEMO_MODE) return;
+      if (!cfg.DEMO_MODE || !showPreview()) return;
       const names = { customer: 'Alex Morgan', contractor: 'Jordan Reyes', ops: 'Operations' };
       S.user = { name: names[d.k], email: d.k + '@preview.local', role: d.k };
       if (d.k === 'contractor') { S.contractor.name = names.contractor; APN.GATE.forEach(k => { S.contractor.vetting[k] = 'verified'; }); }
