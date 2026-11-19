@@ -33,7 +33,7 @@
     calOpen: 'Order a cleaning automatically at every checkout, from your booking calendar link.', calSave: 'Save these settings and check your calendar now.',
     calApprove: 'Order this cleaning now.', calSkip: 'Do not order a cleaning for this stay.',
     trace: 'Choose whether you are outlining the building or the lot.', traceClear: 'Start the outline over.',
-    promoNext: 'Next announcement.', promoOff: 'Hide announcements.', signout: 'Sign out of this device.',
+    promoNext: 'Next announcement.', promoOff: 'Hide announcements.', signout: 'Sign out of this device.', previewAs: 'Open this dashboard with sample data. Demo mode only.',
     vet: 'Record the result of this vetting check.', rmPromo: 'Remove this announcement.',
     atmo: 'Preview how the site looks at another time of day or in other weather.', reset: 'Erase the demo data stored in this browser.'
   };

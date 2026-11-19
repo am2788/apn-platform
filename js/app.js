@@ -130,6 +130,7 @@
         <div id="login-err" class="small" style="color:var(--bad);min-height:20px" role="alert"></div>
         <button class="btn primary" style="width:100%">${up ? 'Create account' : 'Sign in'}</button>
       </form>
+      ${cfg.DEMO_MODE ? `<div class="note" style="margin:16px 0 0"><b>Preview without signing up</b><div class="small muted" style="margin:2px 0 8px">Opens each dashboard with sample data. Demo mode only.</div><div class="row"><button type="button" class="btn sm primary" data-act="previewAs" data-k="customer">Customer dashboard</button><button type="button" class="btn sm primary" data-act="previewAs" data-k="contractor">Contractor dashboard</button><button type="button" class="btn sm" data-act="previewAs" data-k="ops">Operations</button></div></div>` : ''}
       ${cfg.DEMO_MODE ? `<p class="note" style="margin:16px 0 0">Demo mode: any email and password work, and the account type you pick decides which dashboard opens. In production the role comes from the server and Operations is not selectable here.</p>` : ''}
     </div></div>`;
   }
@@ -466,6 +467,13 @@
     atmo(d) { const k = d.k, o = APN.atmo.s.override || { phase: APN.atmo.s.phase, cond: 'clear' };
       APN.atmo.setOverride(k === 'auto' ? null : ['rain', 'snow'].includes(k) ? { phase: o.phase, cond: o.cond === k ? 'clear' : k } : { phase: k, cond: o.cond }); renderFoot(); },
     startQuote() { ui.cTab = S.props.length ? 'order' : 'props'; }, joinContractor() { ui.loginRole = 'contractor'; ui.loginTab = 'up'; },
+    previewAs(d) {
+      if (!cfg.DEMO_MODE) return;
+      const names = { customer: 'Alex Morgan', contractor: 'Jordan Reyes', ops: 'Operations' };
+      S.user = { name: names[d.k], email: d.k + '@preview.local', role: d.k };
+      if (d.k === 'contractor') { S.contractor.name = names.contractor; APN.GATE.forEach(k => { S.contractor.vetting[k] = 'verified'; }); }
+      save(); go({ customer: 'console', contractor: 'contractor', ops: 'ops' }[d.k]);
+    },
     loginTab(d) { ui.loginTab = d.k; render(); }, loginRole(d) { ui.loginRole = d.k; render(); },
     cTab(d) { ui.cTab = d.k; render(); }, kTab(d) { ui.kTab = d.k; ui.job = null; render(); },
     newProp() { ui.cTab = 'props'; ui.prop = { label: '', address: '', type: 'Residential', building: 0, land: 0, measured: false }; render(); },
