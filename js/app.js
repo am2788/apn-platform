@@ -22,6 +22,8 @@
   const route = () => { const h = location.hash.replace('#', ''); return ROUTES.includes(h) ? h : 'home'; };
   const go = r => { if (route() === r) render(); else location.hash = r; };
   const role = () => S.user && S.user.role;
+  /* saved sessions may hold items from sectors that no longer exist */
+  S.tickets = S.tickets.filter(x => APN.sector(x.sector)); S.cart = S.cart.filter(x => APN.sector(x.sector));
   /* older saved sessions predate some vetting items */
   APN.VETTING.forEach(v => { if (!S.contractor.vetting[v[0]]) S.contractor.vetting[v[0]] = 'missing'; });
   const cleared = () => APN.GATE.every(k => S.contractor.vetting[k] === 'verified');
@@ -108,7 +110,7 @@
         <p>Our goal is a single network where an owner can price any property in a minute, where the same trusted technician returns for recurring work, and where no one is paid on a promise or left unpaid for finished work.</p>
         <p class="muted">Field partners start at ${APN.PAYOUT.base}% of the service total and earn up to ${APN.PAYOUT.cap}% through five-star reviews, with a ${money(APN.FEES.transit)} transit stipend on every job.</p></div>
       <div class="card"><h3>For contractors</h3><p class="small muted">Independent 1099 partners complete vetting once, then claim live dispatch tickets in their area.</p>
-        <table><tr><td>Vetting</td><td>ISSA CIMS certification, liability insurance and bond, background check, W-9. Landscaping and pest work also need trade licenses.</td></tr><tr><td>Split</td><td>${APN.PAYOUT.base}% rising ${APN.PAYOUT.step}% per ${APN.PAYOUT.every} five-star reviews, capped at ${APN.PAYOUT.cap}%</td></tr><tr><td>After the cap</td><td>${money(APN.PAYOUT.bonus)} bonus per further ${APN.PAYOUT.every} five-star reviews</td></tr><tr><td>After-hours</td><td>100% of the ${money(APN.FEES.afterHours)} fee</td></tr></table>
+        <table><tr><td>Vetting</td><td>ISSA CIMS certification, liability insurance and bond, background check, W-9. Landscaping work also needs a landscaping certification and an applicator license.</td></tr><tr><td>Split</td><td>${APN.PAYOUT.base}% rising ${APN.PAYOUT.step}% per ${APN.PAYOUT.every} five-star reviews, capped at ${APN.PAYOUT.cap}%</td></tr><tr><td>After the cap</td><td>${money(APN.PAYOUT.bonus)} bonus per further ${APN.PAYOUT.every} five-star reviews</td></tr><tr><td>After-hours</td><td>100% of the ${money(APN.FEES.afterHours)} fee</td></tr></table>
         <p style="margin:14px 0 0"><a class="btn" href="#login" data-act="joinContractor">${t('join')}</a></p></div></div></section>`;
   }
 
@@ -244,7 +246,6 @@
       <div class="card"><h3>3. Tier</h3><div class="grid g3" style="gap:8px">${sec.tiers.map(([n, d], i) => `<label class="opt ${o.tier === i ? 'on' : ''}"><input type="radio" name="tier" data-tier="${i}" ${o.tier === i ? 'checked' : ''}><span><b>${esc(n)}</b><small>${money(APN.RATES[i])} per sq ft<br>${esc(d)}</small></span></label>`).join('')}</div></div>
       <div class="card"><h3>4. Schedule</h3><div class="seg" style="margin-bottom:12px">${APN.FREQ.map(f => `<button data-act="oFreq" data-k="${f}" class="${o.freq === f ? 'on' : ''}">${f}</button>`).join('')}</div>
         <label class="opt ${o.afterHours ? 'on' : ''}" style="margin-bottom:8px"><input type="checkbox" data-flag="afterHours" ${o.afterHours ? 'checked' : ''}><span><b>After-hours dispatch (+${money(APN.FEES.afterHours)})</b><small>Evenings, nights and weekends. The full fee goes to the contractor.</small></span></label>
-        ${o.sector === 'pest' ? `<label class="opt ${o.immediate ? 'on' : ''}"><input type="checkbox" data-flag="immediate" ${o.immediate ? 'checked' : ''}><span><b>Immediate dispatch (+${money(APN.FEES.pestImmediate)})</b><small>For active safety threats only, such as wildlife inside the building. Routine insect treatments are scheduled.</small></span></label>` : ''}</div>
     </div>
     <div class="grid" style="position:sticky;top:80px">
       <div class="card"><h3>Quote</h3><table class="sum">
@@ -551,7 +552,7 @@
   window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
 
   /* demo feed: new dispatch tickets arrive while a board is open */
-  const FEED = [['str', 0, '1210 Summit St, Columbus, OH', 1600], ['res', 1, '48 Elm Grove, Bexley, OH', 2400], ['land', 0, '700 Polaris Pkwy, Columbus, OH', 9800], ['com', 1, '95 Front St, Columbus, OH', 5200], ['pest', 0, '33 Hayden Run, Dublin, OH', 1900]];
+  const FEED = [['str', 0, '1210 Summit St, Columbus, OH', 1600], ['res', 1, '48 Elm Grove, Bexley, OH', 2400], ['land', 0, '700 Polaris Pkwy, Columbus, OH', 9800], ['com', 1, '95 Front St, Columbus, OH', 5200], ['wash', 1, '33 Hayden Run, Dublin, OH', 1900], ['gutter', 0, '82 Cherry Bottom Rd, Gahanna, OH', 2100]];
   let feedI = 0;
   setInterval(() => {
     if (!cfg.DEMO_MODE || document.hidden || !['vetting', 'contractor'].includes(route()) || ui.job) return;

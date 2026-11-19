@@ -43,7 +43,7 @@
     [/^Disputed$/, 'A problem was raised. Funds stay on hold during review.'], [/^Released$/, 'Payment has been released to the contractor.'], [/^Refunded$/, 'The funds were returned to the customer.'],
     [/^Awaiting contractor$/, 'Posted and waiting for a vetted contractor to claim it.'], [/^Claimed$/, 'A contractor has taken this job.'], [/^On site$/, 'The contractor has arrived.'],
     [/^Photo review$/, 'Photos are in. Our team reviews them before payment is released.'], [/^Completed$/, 'Job finished and paid.'],
-    [/^Immediate$/, 'Urgent dispatch for an active safety threat.'], [/^After-hours$/, 'Evenings, nights or weekends. The full after-hours fee goes to the contractor.'],
+[/^After-hours$/, 'Evenings, nights or weekends. The full after-hours fee goes to the contractor.'],
     [/^Same-day turnover$/, 'A new guest checks in the day this stay ends, so the clean needs to finish in time.'],
     [/ verified$/, 'Our team confirmed this measurement.'], [/ pending$/, 'Our team is confirming this measurement. Ordering opens once it is verified.'],
     [/^Not cleared$/, 'Finish vetting to start claiming jobs.'], [/^Cleared$/, 'All required vetting checks are verified.'], [/^Paid$/, 'This payout has been released.'], [/^Pending review$/, 'Payout releases after photo review.']

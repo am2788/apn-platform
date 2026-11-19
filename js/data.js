@@ -5,7 +5,7 @@
 
   /* One price structure on every sector. */
   APN.RATES = [0.10, 0.45, 1.20];
-  APN.FEES = { pestImmediate: 350, afterHours: 100, transit: 25 };
+  APN.FEES = { afterHours: 100, transit: 25 };
   APN.BUNDLE_OFF = [0.05, 0.10, 0.20];           // 2+ sectors on one property
   APN.PORTFOLIO = [{ min: 10, pct: 0.15 }, { min: 5, pct: 0.07 }];   // percent off the rate by number of properties on the account
   APN.RES_GUARD = { over: 15000, anchor: 2200 };  // residential single-property safeguard
@@ -97,21 +97,6 @@
         ['Break room and kitchen deep clean', 'Appliances, cabinets and drains.'],
         ['High-touch disinfection', 'Handles, rails, elevators and shared equipment.'],
         ['Post-construction clean', 'Dust-down and detail after build-out.']] },
-    { id: 'pest', name: 'Immediate Pest Abatement', short: 'Pest', img: 'garden.jpg', basis: 'building',
-      blurb: 'Scheduled prevention plus immediate dispatch for active safety threats.',
-      tiers: [
-        ['Perimeter Defense', 'Exterior barrier and larvicide for standard lots.'],
-        ['Interior + Exterior Elimination', 'Combined treatment with rodent exclusion.'],
-        ['Full-Property Eradication', 'Heat treatment, exclusion and follow-up for severe infestations.']],
-      services: [
-        ['Perimeter insect barrier', 'Foundation spray at entry points.'],
-        ['Interior roach and ant elimination', 'Gel bait and residual treatment.'],
-        ['Mosquito yard treatment', 'Misting and standing-water larvicide.'],
-        ['Rodent exclusion and trapping', 'Entry sealing and station grid.'],
-        ['Termite barrier treatment', 'Soil barrier and wood treatment.'],
-        ['Bed bug heat treatment', 'Whole-room thermal remediation.'],
-        ['Wildlife exclusion', 'Humane capture and sealing.'],
-        ['Wasp and hornet nest removal', 'Nest extraction and deterrent.']] },
     { id: 'hosp', name: 'Hospital & Clinical Environments', short: 'Hospital', img: 'hosp.jpg', basis: 'building', soon: true,
       blurb: 'Terminal cleaning for hospitals and clinics, staffed by our own W-2 teams.',
       tiers: [
@@ -131,10 +116,10 @@
     ['bond', 'Liability bond certificate', 'Active bond certificate naming your business.'],
     ['background', 'Background check', 'Consent and clear result from our screening provider.'],
     ['landscape', 'Landscaping certification', 'Your landscape professional credential, such as a certified landscape technician certification or a state landscape contractor license where your state requires one.'],
-    ['applicator', 'Pesticide and fertilizer applicator license', 'Your state commercial applicator license. Needed for any chemical or fertilizer application, including pest work.']];
+    ['applicator', 'Pesticide and fertilizer applicator license', 'Your state commercial applicator license. Needed for any chemical or fertilizer application on landscaping jobs.']];
   /* Everyone must clear the base gate. Some sectors also need trade credentials. */
   APN.GATE = ['identity', 'issa', 'insurance', 'bond', 'background'];
-  APN.TRADE_GATE = { land: ['landscape', 'applicator'], pest: ['applicator'] };
+  APN.TRADE_GATE = { land: ['landscape', 'applicator'] };
   APN.vetName = k => (APN.VETTING.find(v => v[0] === k) || [k, k])[1];
 
   /* ---------- pricing ---------- */
@@ -157,7 +142,7 @@
     const port = +((APN.RATES[item.tier] - bundle) * portPct).toFixed(4);
     const rate = Math.max(0.01, +(APN.RATES[item.tier] - bundle - port).toFixed(4));
     const service = +(area * rate).toFixed(2);
-    const fees = (item.immediate ? APN.FEES.pestImmediate : 0) + (item.afterHours ? APN.FEES.afterHours : 0);
+    const fees = item.afterHours ? APN.FEES.afterHours : 0;
     return { area, guarded, base: APN.RATES[item.tier], bundle, port, portPct, rate, service, fees, total: +(service + fees).toFixed(2), basis: sec.basis };
   };
   APN.split = reviews => Math.min(APN.PAYOUT.cap, APN.PAYOUT.base + APN.PAYOUT.step * Math.floor(reviews / APN.PAYOUT.every));
@@ -194,7 +179,6 @@
       tickets: [
         T({ sector: 'str', tier: 0, address: '77 Canal St, Columbus, OH', area: 1400, service: 140, total: 140, window: 'Today 3:00 PM', created: now - 0.4 * h, services: ['Express turnover reset', 'Smart lock re-code'] }),
         T({ sector: 'land', tier: 1, address: '9 Orchard Ln, Westerville, OH', area: 5200, service: 2340, total: 2340, window: 'Tomorrow 8:00 AM', created: now - 1.2 * h, services: ['Core aeration and fertilization', 'Shrub and hedge pruning'] }),
-        T({ sector: 'pest', tier: 1, address: '301 Mill Run, Hilliard, OH', area: 2100, service: 945, total: 1295, immediate: true, window: 'Immediate', created: now - 0.1 * h, services: ['Wildlife exclusion'] }),
         T({ sector: 'com', tier: 0, address: '2200 Harper Rd, Dublin, OH', area: 12400, service: 1240, total: 1340, afterHours: true, window: 'Tonight 9:00 PM', created: now - 3 * h, services: ['Office and common-area janitorial', 'Restroom sanitation'], propId: 'P-2', mine: true }),
         T({ sector: 'res', tier: 1, address: '56 Birch Ct, Gahanna, OH', area: 2300, service: 1035, total: 1035, window: 'Yesterday', created: now - 26 * h, status: 'review', claimedBy: 'Field Partner 204', services: ['Whole-home clean', 'Carpet steam extraction'], photos: Object.fromEntries(Array.from({ length: 10 }, (_, i) => [i, true])) })],
       contractor: { name: 'Field Partner', reviews: 31, vetting: { identity: 'verified', issa: 'missing', insurance: 'missing', bond: 'missing', background: 'submitted', landscape: 'missing', applicator: 'missing' }, paid: 0 },
